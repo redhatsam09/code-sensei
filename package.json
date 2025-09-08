@@ -1,0 +1,63 @@
+{
+  "name": "forest-sprite-viewer",
+  "displayName": "Forest Sprite Viewer",
+  "description": "View and preview the included Free Pixel Art Forest sprite assets in a custom Activity Bar view.",
+  "publisher": "your-name",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onView:forestSpritesView",
+    "onCommand:forestSprites.openForest"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "forestSprites",
+          "title": "Forest",
+          "icon": "resources/forest-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "forestSprites": [
+        {
+          "id": "forestSpritesView",
+          "name": "Sprites",
+          "type": "webview",
+          "icon": "resources/forest-icon.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "forestSprites.openForest",
+        "title": "Forest: Open Forest Scene",
+        "icon": "$(tree-view-icon)"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "echo 'Install vsce globally then run vsce package'",
+    "lint": "echo 'No linter configured'"
+  },
+  "files": [
+    "out",
+    "assets",
+    "resources",
+    "README.md",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0"
+  }
+}
