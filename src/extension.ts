@@ -12,13 +12,41 @@ export function activate(context: vscode.ExtensionContext) {
       provider.reveal();
     })
   );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument(() => {
+      provider.onUserActivity();
+    })
+  );
 }
 
 export function deactivate() {}
 
 class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
+  private activityTimeout?: NodeJS.Timeout;
   constructor(private readonly context: vscode.ExtensionContext) {}
+
+  public onUserActivity() {
+    if (!this.view) {
+      return;
+    }
+
+    // User is typing, start walking
+    this.view.webview.postMessage({ command: 'startWalking' });
+
+    // Clear previous timer
+    if (this.activityTimeout) {
+      clearTimeout(this.activityTimeout);
+    }
+
+    // Set a new timer to detect when typing stops
+    this.activityTimeout = setTimeout(() => {
+      if (this.view) {
+        this.view.webview.postMessage({ command: 'stopWalking' });
+      }
+    }, 1500); // 1.5 seconds of inactivity
+  }
 
   public reveal() {
     if (this.view) {
@@ -84,20 +112,62 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         background-image: url(${characterSheetUri});
         background-repeat: no-repeat;
         image-rendering: pixelated; /* Keep pixels sharp */
-        animation: idle-back 0.8s steps(6) infinite; /* Smoother animation */
       }
 
-      @keyframes idle-back {
+      .character.idle {
+        animation: idle-anim 1s steps(6) infinite;
+      }
+      .character.walk {
+        animation: walk-anim 0.9s steps(8) infinite;
+      }
+      .character.jump {
+        animation: jump-anim 0.5s steps(3) forwards;
+      }
+
+      @keyframes idle-anim {
         from { background-position: 0px 0px; }
         to { background-position: -768px 0px; } /* 6 frames * 128px */
       }
+      @keyframes walk-anim {
+        from { background-position: 0px -128px; }
+        to { background-position: -1024px -128px; } /* 8 frames * 128px */
+      }
+      @keyframes jump-anim {
+        from { background-position: 0px -512px; }
+        to { background-position: -384px -512px; } /* 3 frames * 128px */
+      }
     `;
     const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
-    const characterHtml = `<div class="character"></div>`;
+    const characterHtml = `<div class="character idle"></div>`;
     const script = /* js */ `(() => {
       const scene = document.querySelector('.scene');
       const vp = document.querySelector('.viewport');
       const first = scene.querySelector('img');
+      const character = document.querySelector('.character');
+
+      window.addEventListener('message', event => {
+        const message = event.data;
+        switch (message.command) {
+          case 'startWalking':
+            if (!character.classList.contains('walk')) {
+              character.className = 'character walk';
+            }
+            break;
+          case 'stopWalking':
+            if (character.classList.contains('walk')) {
+              character.className = 'character jump';
+            }
+            break;
+        }
+      });
+
+      character.addEventListener('animationend', () => {
+        // When jump animation finishes, go back to idle
+        if (character.classList.contains('jump')) {
+          character.className = 'character idle';
+        }
+      });
+
       function layout() {
         if(!first.complete) { first.addEventListener('load', layout); return; }
         const iw = first.naturalWidth; const ih = first.naturalHeight;
