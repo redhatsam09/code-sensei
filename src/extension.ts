@@ -31,10 +31,11 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   async resolveWebviewView(webviewView: vscode.WebviewView) {
     this.view = webviewView;
     const { webview } = webviewView;
-    webview.options = { enableScripts: true }; 
+    webview.options = { enableScripts: true };
 
     const sceneLayers = await this.buildSceneLayerUris(webview);
-    webview.html = this.renderSceneHtml(webview, sceneLayers);
+    const characterSheetUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'jotem', 'Jotem spritesheet.png'));
+    webview.html = this.renderSceneHtml(webview, sceneLayers, characterSheetUri);
   }
 
   private async buildSceneLayerUris(webview: vscode.Webview): Promise<vscode.Uri[]> {
@@ -61,7 +62,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   }
 
   // Simplified fullscreen scene focused slightly lower (road) and slightly zoomed
-  private renderSceneHtml(webview: vscode.Webview, layers: vscode.Uri[]): string {
+  private renderSceneHtml(webview: vscode.Webview, layers: vscode.Uri[], characterSheetUri: vscode.Uri): string {
     const nonce = Date.now().toString(36);
     const style = /* css */ `
       html, body { height:100%; }
@@ -72,8 +73,27 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       .scene img { position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
       .empty { padding:16px; font-style:italic; }
       .overlay { position:absolute; left:6px; top:6px; background:rgba(0,0,0,.45); padding:2px 6px; border-radius:4px; font-size:10px; letter-spacing:.5px; }
+      
+      .character {
+        position: absolute;
+        width: 128px;
+        height: 128px;
+        left: 50%;
+        top: 68%; /* Lowered to be on the road */
+        transform: translate(-50%, -50%) scale(2.2); /* Centered and enlarged */
+        background-image: url(${characterSheetUri});
+        background-repeat: no-repeat;
+        image-rendering: pixelated; /* Keep pixels sharp */
+        animation: idle-back 0.8s steps(6) infinite; /* Smoother animation */
+      }
+
+      @keyframes idle-back {
+        from { background-position: 0px 0px; }
+        to { background-position: -768px 0px; } /* 6 frames * 128px */
+      }
     `;
     const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
+    const characterHtml = `<div class="character"></div>`;
     const script = /* js */ `(() => {
       const scene = document.querySelector('.scene');
       const vp = document.querySelector('.viewport');
@@ -107,7 +127,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       <title>Forest Scene</title>
       <style nonce="${nonce}">${style}</style>
     </head><body>
-      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div><div class="overlay">Forest Scene</div></div></div>` : `<div class="empty">No layered background PNGs found.</div>`}
+      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}<div class="overlay">Forest Scene</div></div></div>` : `<div class="empty">No layered background PNGs found.</div>`}
       <script nonce="${nonce}">${script}</script>
     </body></html>`;
   }
