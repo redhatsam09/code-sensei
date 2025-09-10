@@ -99,6 +99,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       .viewport { position:absolute; inset:0; overflow:hidden; }
       .scene { position:absolute; left:0; top:0; transform-origin: top left; image-rendering:pixelated; }
       .scene img { position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
+      .scene .mirrored { transform: scaleX(-1); }
       .empty { padding:16px; font-style:italic; }
       .overlay { position:absolute; left:6px; top:6px; background:rgba(0,0,0,.45); padding:2px 6px; border-radius:4px; font-size:10px; letter-spacing:.5px; }
       
@@ -209,24 +210,54 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       }
 
       function clampCamera() {
-        const halfW = visibleW / 2;
+        // Only clamp vertically, allow horizontal to be infinite
         const halfH = visibleH / 2;
-        cameraX = Math.max(halfW, Math.min(worldW - halfW, cameraX));
         cameraY = Math.max(halfH, Math.min(worldH - halfH, cameraY));
+        // No horizontal clamping for infinite scrolling
       }
 
       function applyCameraTransform() {
-        const ox = cameraX - visibleW / 2;
+        const patternWidth = worldW * 2;
+        const effectiveX = ((cameraX % patternWidth) + patternWidth) % patternWidth;
+
+        const ox = effectiveX - visibleW / 2;
         const oy = cameraY - visibleH / 2;
         const tx = -ox * scale;
         const ty = -oy * scale;
-        // Instead of scaling container directly we set transform on scene
-        scene.style.transform = ` + "`translate(${tx}px, ${ty}px) scale(${scale})`" + `;
-        // Parallax: translate each layer slightly based on factor (only horizontal for depth illusion)
+
+        scene.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(' + scale + ')';
+
         layerEls.forEach((el, i) => {
           const f = parallaxFactor(i);
-          el.style.transform = 'translateX(' + ( (cameraX / worldW) * (1 - f) * 100 ) + 'px)';
+          const parallaxX = cameraX * (1 - f);
+          const segmentWidth = worldW;
+          const currentSegment = Math.floor(parallaxX / segmentWidth);
+
+          ensureDuplicate(el, i, currentSegment -1);
+          ensureDuplicate(el, i, currentSegment);
+          ensureDuplicate(el, i, currentSegment + 1);
         });
+      }
+
+      const layerSegments = {};
+      function ensureDuplicate(el, layerIndex, segmentIndex) {
+        const key = layerIndex + '-' + segmentIndex;
+        let segment = layerSegments[key];
+
+        if (!segment) {
+            segment = el.cloneNode(true);
+            segment.style.position = 'absolute';
+            scene.appendChild(segment);
+            layerSegments[key] = segment;
+        }
+
+        const isMirrored = segmentIndex % 2 !== 0;
+        segment.style.left = (segmentIndex * worldW) + 'px';
+        if (isMirrored) {
+            segment.style.transform = 'scaleX(-1)';
+        } else {
+            segment.style.transform = 'scaleX(1)';
+        }
       }
 
       function update(dt) {
