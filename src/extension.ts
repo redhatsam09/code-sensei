@@ -121,6 +121,12 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       .character.walk {
         animation: walk-anim 0.9s steps(8) infinite;
       }
+      .character.attack {
+        animation: attack-anim 0.8s steps(10) infinite;
+      }
+      .character.attack-twice {
+        animation: attack-anim 0.8s steps(10) 2 forwards;
+      }
       .character.jump {
         animation: jump-anim 0.5s steps(3) forwards;
       }
@@ -136,6 +142,10 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       @keyframes jump-anim {
         from { background-position: 0px -512px; }
         to { background-position: -384px -512px; } /* 3 frames * 128px */
+      }
+      @keyframes attack-anim {
+        from { background-position: 0px -896px; }
+        to { background-position: -1280px -896px; } /* 10 frames * 128px */
       }
     `;
     const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
@@ -187,8 +197,20 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       });
 
       character.addEventListener('animationend', () => {
-        if (character.classList.contains('jump')) {
+        if (character.classList.contains('jump') || character.classList.contains('attack-twice')) {
           character.className = 'character idle';
+        }
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          if (!walking) {
+            character.className = 'character attack';
+          }
+        } else {
+          if (character.classList.contains('attack')) {
+            character.className = 'character attack-twice';
+          }
         }
       });
 
