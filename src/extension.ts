@@ -103,6 +103,31 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       .empty { padding:16px; font-style:italic; }
       .overlay { position:absolute; left:6px; top:6px; background:rgba(0,0,0,.45); padding:2px 6px; border-radius:4px; font-size:10px; letter-spacing:.5px; }
       
+      .timer {
+        position: absolute;
+        top: 34%;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: monospace;
+        font-size: 32px;
+        line-height: 1;
+        letter-spacing: 2px;
+        color: #ff3333;
+        text-shadow:
+          -2px -2px 0 #990000,
+           2px -2px 0 #990000,
+          -2px  2px 0 #990000,
+           2px  2px 0 #990000,
+          0    -2px 0 #cc0000,
+          0     2px 0 #cc0000,
+          -2px  0   0 #cc0000,
+           2px  0   0 #cc0000;
+        -webkit-font-smoothing: none;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeSpeed;
+        z-index: 10;
+      }
+      
       .character {
         position: absolute;
         width: 128px;
@@ -150,11 +175,39 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
     `;
     const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
     const characterHtml = `<div class="character idle"></div>`;
+    const timerHtml = `<div class="timer">01:00:00</div>`;
     const script = /* js */ `(() => {
       const scene = document.querySelector('.scene');
       const vp = document.querySelector('.viewport');
       const first = scene.querySelector('img');
       const character = document.querySelector('.character');
+      const timer = document.querySelector('.timer');
+
+      // Timer state
+      let timerSeconds = 3600; // 1 hour in seconds
+
+      function formatTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return hours.toString().padStart(2, '0') + ':' + 
+               mins.toString().padStart(2, '0') + ':' + 
+               secs.toString().padStart(2, '0');
+      }
+
+      function updateTimer() {
+        if (timerSeconds > 0) {
+          timerSeconds--;
+          timer.textContent = formatTime(timerSeconds);
+        } else {
+          timer.textContent = '00:00:00';
+          // keep red tone when finished
+          timer.style.color = '#ff3333';
+        }
+      }
+
+      // Update timer every second
+      setInterval(updateTimer, 1000);
 
       // State
       let scale = 1;
@@ -322,7 +375,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       <title>Forest Scene</title>
       <style nonce="${nonce}">${style}</style>
     </head><body>
-      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}<div class="overlay">Forest Scene</div></div></div>` : `<div class="empty">No layered background PNGs found.</div>`}
+      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${timerHtml}<div class="overlay">Forest Scene</div></div></div>` : `<div class="empty">No layered background PNGs found.</div>`}
       <script nonce="${nonce}">${script}</script>
     </body></html>`;
   }
