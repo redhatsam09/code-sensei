@@ -155,6 +155,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       .character.jump {
         animation: jump-anim 0.5s steps(3) forwards;
       }
+      .character.fall {
+        animation: fall-anim 0.45s steps(5) forwards;
+      }
 
       @keyframes idle-anim {
         from { background-position: 0px 0px; }
@@ -167,6 +170,10 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       @keyframes jump-anim {
         from { background-position: 0px -512px; }
         to { background-position: -384px -512px; } /* 3 frames * 128px */
+      }
+      @keyframes fall-anim {
+        from { background-position: 0px -640px; }
+        to { background-position: -640px -640px; } /* 5 frames * 128px */
       }
       @keyframes attack-anim {
         from { background-position: 0px -896px; }
@@ -265,8 +272,14 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       });
 
       character.addEventListener('animationend', () => {
-        if (character.classList.contains('jump') || character.classList.contains('attack-twice')) {
-          character.className = 'character idle';
+        if (character.classList.contains('jump')) {
+          // After jump, play falling animation for smoother landing
+          character.className = 'character fall';
+          return;
+        }
+        if (character.classList.contains('fall') || character.classList.contains('attack-twice')) {
+          // After falling or finishing the two-attack sequence, return to idle unless walking resumed
+          character.className = walking ? 'character walk' : 'character idle';
         }
       });
 
