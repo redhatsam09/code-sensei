@@ -128,13 +128,26 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         z-index: 10;
       }
       
-      .character {
+      /* Wrapper controls position/scale; inner .character handles sprite frames */
+      .character-wrap {
         position: absolute;
         width: 128px;
         height: 128px;
         left: 50%;
         top: 68%; /* Lowered to be on the road */
         transform: translate(-50%, -50%) scale(2.2); /* Centered and enlarged */
+        will-change: transform;
+      }
+      .character-wrap.jumping {
+        animation: jump-motion 0.45s ease-out forwards;
+      }
+      .character-wrap.falling {
+        animation: fall-motion 0.5s ease-in forwards;
+      }
+
+      .character {
+        width: 128px;
+        height: 128px;
         background-image: url(${characterSheetUri});
         background-repeat: no-repeat;
         image-rendering: pixelated; /* Keep pixels sharp */
@@ -153,10 +166,10 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         animation: attack-anim 0.8s steps(10) 2 forwards;
       }
       .character.jump {
-        animation: jump-anim 0.5s steps(3) forwards;
+        animation: jump-anim 0.45s steps(3) forwards;
       }
       .character.fall {
-        animation: fall-anim 0.45s steps(5) forwards;
+        animation: fall-anim 0.5s steps(5) forwards;
       }
 
       @keyframes idle-anim {
@@ -166,6 +179,17 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       @keyframes walk-anim {
         from { background-position: 0px -128px; }
         to { background-position: -1024px -128px; } /* 8 frames * 128px */
+      }
+      /* Vertical motion for smoother jump/fall */
+      @keyframes jump-motion {
+        from { transform: translate(-50%, -50%) scale(2.2) translateY(0px); }
+        to   { transform: translate(-50%, -50%) scale(2.2) translateY(-22px); }
+      }
+      @keyframes fall-motion {
+        0%   { transform: translate(-50%, -50%) scale(2.2) translateY(-22px); }
+        70%  { transform: translate(-50%, -50%) scale(2.2) translateY(0px); }
+        85%  { transform: translate(-50%, -50%) scale(2.2) translateY(3px); }
+        100% { transform: translate(-50%, -50%) scale(2.2) translateY(0px); }
       }
       @keyframes jump-anim {
         from { background-position: 0px -512px; }
@@ -180,14 +204,15 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         to { background-position: -1280px -896px; } /* 10 frames * 128px */
       }
     `;
-    const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
-    const characterHtml = `<div class="character idle"></div>`;
+  const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
+  const characterHtml = `<div class="character-wrap"><div class="character idle"></div></div>`;
     const timerHtml = `<div class="timer">01:00:00</div>`;
     const script = /* js */ `(() => {
       const scene = document.querySelector('.scene');
       const vp = document.querySelector('.viewport');
       const first = scene.querySelector('img');
-      const character = document.querySelector('.character');
+  const characterWrap = document.querySelector('.character-wrap');
+  const character = document.querySelector('.character');
       const timer = document.querySelector('.timer');
 
       // Timer state
@@ -241,7 +266,8 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       const characterWorldXStartFactor = 0.25; // start a bit from left then scroll
       const walkSpeed = 140; // pixels / second world units
       let velocityX = 0;
-      let walking = false;
+  let walking = false;
+  let airborne = false; // true between jump start and fall end
 
       // Parallax factors per layer (front moves more). If layer count > factors length we interpolate.
       const layerEls = Array.from(scene.querySelectorAll('img'));
@@ -252,7 +278,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         return 0.25 + t * 0.75; // 0.25 .. 1.0
       }
 
-      window.addEventListener('message', event => {
+  window.addEventListener('message', event => {
         const message = event.data;
         switch (message.command) {
           case 'startWalking':
@@ -260,11 +286,18 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
               character.className = 'character walk';
             }
             walking = true;
+    // ensure on-ground pose
+    characterWrap.classList.remove('jumping', 'falling');
+            airborne = false;
             startTimer();
             break;
           case 'stopWalking':
             if (character.classList.contains('walk')) {
               character.className = 'character jump';
+              characterWrap.classList.remove('falling');
+              // trigger upward motion
+              characterWrap.classList.add('jumping');
+              airborne = true;
             }
             walking = false;
             break;
@@ -273,21 +306,28 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
 
       character.addEventListener('animationend', () => {
         if (character.classList.contains('jump')) {
-          // After jump, play falling animation for smoother landing
+          // After jump frames, begin fall frames
           character.className = 'character fall';
+          // switch wrapper from jumping to falling
+          characterWrap.classList.remove('jumping');
+          characterWrap.classList.add('falling');
           return;
         }
         if (character.classList.contains('fall') || character.classList.contains('attack-twice')) {
-          // After falling or finishing the two-attack sequence, return to idle unless walking resumed
+          // Finish motion and land
           character.className = walking ? 'character walk' : 'character idle';
+          characterWrap.classList.remove('jumping', 'falling');
+          airborne = false;
         }
       });
 
-      document.addEventListener('visibilitychange', () => {
+  document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
           stopTimer();
           if (!walking) {
+    characterWrap.classList.remove('jumping', 'falling');
             character.className = 'character attack';
+            airborne = false;
           }
         } else {
           if (character.classList.contains('attack')) {
@@ -377,6 +417,11 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         // Move camera forward when near center after initial section
         if (velocityX > 5) {
           targetCameraX += velocityX * dt;
+        }
+        // While airborne, continue moving forward a bit for a projectile feel
+        if (airborne) {
+          const airSpeed = walkSpeed * 0.35; // 35% of walk speed
+          targetCameraX += airSpeed * dt;
         }
         // Lock initial camera until character reaches start threshold (simulate character moving to center early)
         const desiredStartX = worldW * characterWorldXStartFactor;
