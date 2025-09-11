@@ -18,6 +18,17 @@ export function activate(context: vscode.ExtensionContext) {
       provider.onUserActivity();
     })
   );
+
+  // Track when user switches away from VS Code
+  context.subscriptions.push(
+    vscode.window.onDidChangeWindowState((state) => {
+      if (state.focused) {
+        provider.onUserReturn();
+      } else {
+        provider.onUserAway();
+      }
+    })
+  );
 }
 
 export function deactivate() {}
@@ -25,6 +36,7 @@ export function deactivate() {}
 class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private activityTimeout?: NodeJS.Timeout;
+  private awayStartTime?: number;
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   public onUserActivity() {
@@ -32,20 +44,65 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    // User is typing, start walking
-    this.view.webview.postMessage({ command: 'startWalking' });
+    // If returning from away, send return event first so animation can play
+    if (this.awayStartTime) {
+      const awayDuration = Date.now() - this.awayStartTime;
+      const awayMinutes = awayDuration / (1000 * 60);
+      this.view.webview.postMessage({ command: 'userReturn', awayMinutes });
+      this.awayStartTime = undefined;
+    } else {
+      // User is typing, start walking
+      this.view.webview.postMessage({ command: 'startWalking' });
+    }
 
     // Clear previous timer
     if (this.activityTimeout) {
       clearTimeout(this.activityTimeout);
     }
 
+    // Reset away time only if it was set (handled above on return)
+    if (this.awayStartTime) {
+      this.awayStartTime = undefined;
+    }
+
     // Set a new timer to detect when typing stops
     this.activityTimeout = setTimeout(() => {
       if (this.view) {
         this.view.webview.postMessage({ command: 'stopWalking' });
+        // Mark inactivity-away start if not already set
+        if (!this.awayStartTime) {
+          this.awayStartTime = Date.now();
+        }
       }
     }, 1500); // 1.5 seconds of inactivity
+  }
+
+  public onUserAway() {
+    // Mark the time when user switches away from VS Code
+    if (!this.awayStartTime) {
+      this.awayStartTime = Date.now();
+    }
+    if (this.view) {
+      this.view.webview.postMessage({ command: 'userAway' });
+    }
+  }
+
+  public onUserReturn() {
+    if (!this.view || !this.awayStartTime) {
+      return;
+    }
+
+    const awayDuration = Date.now() - this.awayStartTime;
+    const awayMinutes = awayDuration / (1000 * 60);
+
+    // Send message to webview with away duration
+    this.view.webview.postMessage({ 
+      command: 'userReturn', 
+      awayMinutes: awayMinutes 
+    });
+
+    // Reset away time
+    this.awayStartTime = undefined;
   }
 
   public reveal() {
@@ -165,6 +222,15 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       .character.attack-twice {
         animation: attack-anim 0.8s steps(10) 2 forwards;
       }
+      .character.death {
+        animation: death-anim-1 1s steps(10) 1 forwards;
+      }
+      .character.death-2 {
+        animation: death-anim-2 1s steps(10) 1 forwards;
+      }
+      .character.death-3 {
+        animation: death-anim-3 1s steps(10) 1 forwards;
+      }
       .character.jump {
         animation: jump-anim 0.45s steps(3) forwards;
       }
@@ -202,6 +268,18 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       @keyframes attack-anim {
         from { background-position: 0px -896px; }
         to { background-position: -1280px -896px; } /* 10 frames * 128px */
+      }
+      @keyframes death-anim-1 {
+        from { background-position: 0px -1024px; }
+        to { background-position: -1280px -1024px; }
+      }
+      @keyframes death-anim-2 {
+        from { background-position: 0px -1152px; }
+        to { background-position: -1280px -1152px; }
+      }
+      @keyframes death-anim-3 {
+        from { background-position: 0px -1280px; }
+        to { background-position: -1280px -1280px; }
       }
     `;
   const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
@@ -301,6 +379,31 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             }
             walking = false;
             break;
+          case 'userAway':
+            // User switched away from VS Code - just set to idle, no attack animation
+            if (!walking) {
+              characterWrap.classList.remove('jumping', 'falling');
+              character.className = 'character idle';
+              airborne = false;
+            }
+            break;
+          case 'userReturn':
+            // User returned to VS Code
+            const awayMinutes = message.awayMinutes || 0;
+            
+            // Stop any walking state and ground the character
+            walking = false;
+            characterWrap.classList.remove('jumping', 'falling');
+            airborne = false;
+            
+            if (awayMinutes >= 1) {
+              // Away for 1 minute or more - play death animation directly
+              character.className = 'character death';
+            } else if (awayMinutes > 0) {
+              // Away for less than 1 minute - play attack animation twice
+              character.className = 'character attack-twice';
+            }
+            break;
         }
       });
 
@@ -313,8 +416,16 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           characterWrap.classList.add('falling');
           return;
         }
-        if (character.classList.contains('fall') || character.classList.contains('attack-twice')) {
-          // Finish motion and land
+        if (character.classList.contains('death')) {
+          character.className = 'character death-2';
+          return;
+        }
+        if (character.classList.contains('death-2')) {
+          character.className = 'character death-3';
+          return;
+        }
+  if (character.classList.contains('fall') || character.classList.contains('attack-twice') || character.classList.contains('death-3')) {
+          // Finish motion and land - return to appropriate state
           character.className = walking ? 'character walk' : 'character idle';
           characterWrap.classList.remove('jumping', 'falling');
           airborne = false;
@@ -324,15 +435,6 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
           stopTimer();
-          if (!walking) {
-    characterWrap.classList.remove('jumping', 'falling');
-            character.className = 'character attack';
-            airborne = false;
-          }
-        } else {
-          if (character.classList.contains('attack')) {
-            character.className = 'character attack-twice';
-          }
         }
       });
 
