@@ -203,11 +203,25 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           timer.textContent = '00:00:00';
           // keep red tone when finished
           timer.style.color = '#ff3333';
+          stopTimer();
         }
       }
 
-      // Update timer every second
-      setInterval(updateTimer, 1000);
+      // Initialize timer display and controller
+      timer.textContent = formatTime(timerSeconds);
+      let timerInterval = null;
+      function startTimer() {
+        if (timerInterval || timerSeconds <= 0) return;
+        timerInterval = setInterval(updateTimer, 1000);
+      }
+      function stopTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+
+  // Timer starts on user activity and pauses when tab hidden
 
       // State
       let scale = 1;
@@ -239,6 +253,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
               character.className = 'character walk';
             }
             walking = true;
+            startTimer();
             break;
           case 'stopWalking':
             if (character.classList.contains('walk')) {
@@ -257,6 +272,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
 
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
+          stopTimer();
           if (!walking) {
             character.className = 'character attack';
           }
