@@ -300,10 +300,86 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         from { background-position: 0px -1408px; }
         to { background-position: -768px -1408px; } /* 6 frames * 128px */
       }
+
+      /* Restart Button Styling */
+      .restart-button {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #8B4513 0%, #A0522D 25%, #CD853F  50%, #A0522D 75%, #654321 100%);
+        border: 4px solid #2F1B14;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-family: monospace;
+        font-size: 16px;
+        font-weight: bold;
+        color: #F5DEB3;
+        text-shadow: 
+          -1px -1px 0 #2F1B14,
+           1px -1px 0 #2F1B14,
+          -1px  1px 0 #2F1B14,
+           1px  1px 0 #2F1B14;
+        cursor: pointer;
+        z-index: 100;
+        box-shadow: 
+          inset 2px 2px 0 #D2B48C,
+          inset -2px -2px 0 #654321,
+          0 4px 8px rgba(0, 0, 0, 0.3);
+        image-rendering: pixelated;
+        -webkit-font-smoothing: none;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeSpeed;
+        display: none;
+        transition: none;
+        user-select: none;
+        min-width: 120px;
+        text-align: center;
+        letter-spacing: 1px;
+      }
+
+      .restart-button:hover {
+        background: linear-gradient(135deg, #A0522D 0%, #CD853F 25%, #DEB887 50%, #CD853F 75%, #8B4513 100%);
+        box-shadow: 
+          inset 2px 2px 0 #F5DEB3,
+          inset -2px -2px 0 #654321,
+          0 6px 12px rgba(0, 0, 0, 0.4);
+        transform: translate(-50%, -50%) scale(1.05);
+      }
+
+      .restart-button:active {
+        background: linear-gradient(135deg, #654321 0%, #8B4513 25%, #A0522D 50%, #8B4513 75%, #654321 100%);
+        box-shadow: 
+          inset -2px -2px 0 #2F1B14,
+          inset 2px 2px 0 #8B4513,
+          0 2px 4px rgba(0, 0, 0, 0.2);
+        transform: translate(-50%, -50%) scale(0.95);
+      }
+
+      .restart-button.show {
+        display: block;
+        animation: restart-button-appear 0.5s ease-out forwards;
+      }
+
+      @keyframes restart-button-appear {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.5);
+        }
+        50% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1.1);
+        }
+        100% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
     `;
   const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
   const characterHtml = `<div class="character-wrap"><div class="character idle"></div></div>`;
     const timerHtml = `<div class="timer">01:00:00</div>`;
+    const restartButtonHtml = `<button class="restart-button" id="restart-btn">RESTART</button>`;
     const script = /* js */ `(() => {
       const scene = document.querySelector('.scene');
       const vp = document.querySelector('.viewport');
@@ -311,6 +387,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   const characterWrap = document.querySelector('.character-wrap');
   const character = document.querySelector('.character');
       const timer = document.querySelector('.timer');
+      const restartButton = document.getElementById('restart-btn');
 
       // Timer state
       let timerSeconds = 3600; // 1 hour in seconds
@@ -368,6 +445,39 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         airborne = false;
         character.className = 'character item-use';
       }
+
+      // Restart game function
+      function restartGame() {
+        // Reset timer
+        timerSeconds = 3600; // 1 hour
+        timer.textContent = formatTime(timerSeconds);
+        timer.style.color = '#ff3333';
+        
+        // Stop and restart timer if it was running
+        stopTimer();
+        
+        // Reset character state
+        walking = false;
+        airborne = false;
+        velocityX = 0;
+        character.className = 'character idle';
+        characterWrap.classList.remove('jumping', 'falling');
+        
+        // Reset camera position to starting point
+        const desiredStartX = worldW * characterWorldXStartFactor;
+        cameraX = desiredStartX;
+        targetCameraX = desiredStartX;
+        
+        // Hide restart button
+        restartButton.classList.remove('show');
+        
+        // Apply camera transform to snap back to start
+        clampCamera();
+        applyCameraTransform();
+      }
+
+      // Add restart button click handler
+      restartButton.addEventListener('click', restartGame);
 
   // Timer starts on user activity and pauses when tab hidden
 
@@ -472,9 +582,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           character.className = 'character dead-hold';
           characterWrap.classList.remove('jumping', 'falling');
           airborne = false;
-          // Hold the dead pose for a moment, then restore
+          // Hold the dead pose for a moment, then show restart button
           setTimeout(() => {
-            character.className = walking ? 'character walk' : 'character idle';
+            restartButton.classList.add('show');
           }, 900);
           return;
         }
@@ -611,7 +721,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       <title>Forest Scene</title>
       <style nonce="${nonce}">${style}</style>
     </head><body>
-      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${timerHtml}<div class="overlay">Forest Scene</div></div></div>` : `<div class="empty">No layered background PNGs found.</div>`}
+      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${timerHtml}${restartButtonHtml}<div class="overlay">Forest Scene</div></div></div>` : `<div class="empty">No layered background PNGs found.</div>`}
       <script nonce="${nonce}">${script}</script>
     </body></html>`;
   }
