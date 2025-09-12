@@ -545,6 +545,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         // Apply camera transform to snap back to start
         clampCamera();
         applyCameraTransform();
+        
+        // Show the startup message when restarting
+        showPopup('Lets start kid!');
       }
 
       // Add restart button click handler
@@ -628,9 +631,6 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             }
             break;
           case 'userReturn':
-            // Don't change state if character is dead
-            if (isDead) return;
-            
             // User returned to VS Code
             const awayMinutes = message.awayMinutes || 0;
             const fromWindowAway = message.fromWindowAway || false;
@@ -644,14 +644,15 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             if (fromWindowAway) {
               if (awayMinutes >= 1) {
                 // Away for 1 minute or more - play death animation directly
+                // Don't prevent this if character is already dead - allow death animation to restart
                 character.className = 'character death';
-              } else if (awayMinutes > 0) {
-                // Away for less than 1 minute - play attack animation twice
+              } else if (awayMinutes > 0 && !isDead) {
+                // Away for less than 1 minute - play attack animation twice (only if not dead)
                 character.className = 'character attack-twice';
                 showPopup('Hey! Get back here');
               }
-            } else {
-              // Just returning from typing inactivity - go to idle
+            } else if (!isDead) {
+              // Just returning from typing inactivity - go to idle (only if not dead)
               character.className = 'character idle';
             }
             break;
@@ -826,6 +827,13 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       layout();
       requestAnimationFrame(loop);
       showPopup('Lets start kid!');
+      
+      // Add a test mechanism - click on character to trigger death (for testing)
+      character.addEventListener('click', () => {
+        if (!isDead) {
+          character.className = 'character death';
+        }
+      });
     })();`;
     return `<!DOCTYPE html><html><head><meta charset="utf-8" />
       <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';" />
