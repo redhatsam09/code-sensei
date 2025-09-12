@@ -499,11 +499,13 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       }
 
       function playItemUse() {
-        // Avoid interrupting death sequences
-        if (character.classList.contains('death') ||
+        // Avoid interrupting death sequences or if character is dead
+        if (isDead || 
+            character.classList.contains('death') ||
             character.classList.contains('death-2') ||
             character.classList.contains('death-3') ||
-            character.classList.contains('death-4')) {
+            character.classList.contains('death-4') ||
+            character.classList.contains('dead-hold')) {
           return;
         }
         // Ground the character and play item-use
@@ -527,6 +529,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         // Reset character state
         walking = false;
         airborne = false;
+        isDead = false; // Reset dead state
         velocityX = 0;
         character.className = 'character idle';
         characterWrap.classList.remove('jumping', 'falling');
@@ -573,6 +576,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       let velocityX = 0;
   let walking = false;
   let airborne = false; // true between jump start and fall end
+  let isDead = false; // Track if character is dead
 
       // Parallax factors per layer (front moves more). If layer count > factors length we interpolate.
       const layerEls = Array.from(scene.querySelectorAll('img'));
@@ -587,6 +591,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         const message = event.data;
         switch (message.command) {
           case 'startWalking':
+            // Don't allow walking if character is dead
+            if (isDead) return;
+            
             if (!character.classList.contains('walk')) {
               character.className = 'character walk';
             }
@@ -597,6 +604,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             startTimer();
             break;
           case 'stopWalking':
+            // Don't change state if character is dead
+            if (isDead) return;
+            
             if (character.classList.contains('walk')) {
               character.className = 'character jump';
               characterWrap.classList.remove('falling');
@@ -607,6 +617,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             walking = false;
             break;
           case 'userAway':
+            // Don't change state if character is dead
+            if (isDead) return;
+            
             // User switched away from VS Code - just set to idle, no attack animation
             if (!walking) {
               characterWrap.classList.remove('jumping', 'falling');
@@ -615,6 +628,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             }
             break;
           case 'userReturn':
+            // Don't change state if character is dead
+            if (isDead) return;
+            
             // User returned to VS Code
             const awayMinutes = message.awayMinutes || 0;
             const fromWindowAway = message.fromWindowAway || false;
@@ -669,6 +685,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           character.className = 'character dead-hold';
           characterWrap.classList.remove('jumping', 'falling');
           airborne = false;
+          isDead = true; // Mark character as dead
           showPopup('dead', true);
           // Hold the dead pose for a moment, then show restart button
           setTimeout(() => {
@@ -765,6 +782,11 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       }
 
       function update(dt) {
+        // Don't update movement if character is dead
+        if (isDead) {
+          return;
+        }
+        
         // Adjust velocity towards target based on walking flag
         const accel = 600; // px/s^2
         const maxVel = walkSpeed;
