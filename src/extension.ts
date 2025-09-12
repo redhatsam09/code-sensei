@@ -37,6 +37,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private activityTimeout?: NodeJS.Timeout;
   private awayStartTime?: number;
+  private windowAwayStartTime?: number; // Track window focus away separately
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   public onUserActivity() {
@@ -44,12 +45,12 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    // If returning from away, send return event first so animation can play
-    if (this.awayStartTime) {
-      const awayDuration = Date.now() - this.awayStartTime;
+    // If returning from window focus away, send return event first so animation can play
+    if (this.windowAwayStartTime) {
+      const awayDuration = Date.now() - this.windowAwayStartTime;
       const awayMinutes = awayDuration / (1000 * 60);
-      this.view.webview.postMessage({ command: 'userReturn', awayMinutes });
-      this.awayStartTime = undefined;
+      this.view.webview.postMessage({ command: 'userReturn', awayMinutes, fromWindowAway: true });
+      this.windowAwayStartTime = undefined;
     } else {
       // User is typing, start walking
       this.view.webview.postMessage({ command: 'startWalking' });
@@ -60,7 +61,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       clearTimeout(this.activityTimeout);
     }
 
-    // Reset away time only if it was set (handled above on return)
+    // Reset inactivity away time only if it was set (handled above on return)
     if (this.awayStartTime) {
       this.awayStartTime = undefined;
     }
@@ -69,7 +70,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
     this.activityTimeout = setTimeout(() => {
       if (this.view) {
         this.view.webview.postMessage({ command: 'stopWalking' });
-        // Mark inactivity-away start if not already set
+        // Mark inactivity-away start if not already set (this is just typing pause, not window away)
         if (!this.awayStartTime) {
           this.awayStartTime = Date.now();
         }
@@ -78,9 +79,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   }
 
   public onUserAway() {
-    // Mark the time when user switches away from VS Code
-    if (!this.awayStartTime) {
-      this.awayStartTime = Date.now();
+    // Mark the time when user switches away from VS Code window
+    if (!this.windowAwayStartTime) {
+      this.windowAwayStartTime = Date.now();
     }
     if (this.view) {
       this.view.webview.postMessage({ command: 'userAway' });
@@ -88,21 +89,22 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   }
 
   public onUserReturn() {
-    if (!this.view || !this.awayStartTime) {
+    if (!this.view || !this.windowAwayStartTime) {
       return;
     }
 
-    const awayDuration = Date.now() - this.awayStartTime;
+    const awayDuration = Date.now() - this.windowAwayStartTime;
     const awayMinutes = awayDuration / (1000 * 60);
 
     // Send message to webview with away duration
     this.view.webview.postMessage({ 
       command: 'userReturn', 
-      awayMinutes: awayMinutes 
+      awayMinutes: awayMinutes,
+      fromWindowAway: true
     });
 
-    // Reset away time
-    this.awayStartTime = undefined;
+    // Reset window away time
+    this.windowAwayStartTime = undefined;
   }
 
   public reveal() {
@@ -615,19 +617,26 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           case 'userReturn':
             // User returned to VS Code
             const awayMinutes = message.awayMinutes || 0;
+            const fromWindowAway = message.fromWindowAway || false;
             
             // Stop any walking state and ground the character
             walking = false;
             characterWrap.classList.remove('jumping', 'falling');
             airborne = false;
             
-            if (awayMinutes >= 1) {
-              // Away for 1 minute or more - play death animation directly
-              character.className = 'character death';
-            } else if (awayMinutes > 0) {
-              // Away for less than 1 minute - play attack animation twice
-              character.className = 'character attack-twice';
-              showPopup('Hey! Get back here');
+            // Only play attack/death animations if returning from window focus away, not typing inactivity
+            if (fromWindowAway) {
+              if (awayMinutes >= 1) {
+                // Away for 1 minute or more - play death animation directly
+                character.className = 'character death';
+              } else if (awayMinutes > 0) {
+                // Away for less than 1 minute - play attack animation twice
+                character.className = 'character attack-twice';
+                showPopup('Hey! Get back here');
+              }
+            } else {
+              // Just returning from typing inactivity - go to idle
+              character.className = 'character idle';
             }
             break;
         }
