@@ -185,6 +185,70 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         z-index: 10;
       }
       
+      /* Text Popup Styling */
+      .popup-text {
+        position: absolute;
+        bottom: 60px; /* Lower above the character's head to avoid restart button */
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: monospace;
+        font-size: 11px;
+        font-weight: bold;
+        color: white;
+        text-shadow:
+          -1px -1px 0 #000,
+           1px -1px 0 #000,
+          -1px  1px 0 #000,
+           1px  1px 0 #000,
+          -2px 0 0 #555,
+           2px 0 0 #555,
+          0 -2px 0 #555,
+           0 2px 0 #555;
+        white-space: nowrap;
+        z-index: 20;
+        opacity: 0;
+        -webkit-font-smoothing: none;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeSpeed;
+        pointer-events: none;
+      }
+
+      .popup-text.show {
+        animation: popup-anim 3s ease-out forwards;
+      }
+
+      .popup-text.dead {
+        color: #ff3333;
+        text-shadow:
+          -2px -2px 0 #990000,
+           2px -2px 0 #990000,
+          -2px  2px 0 #990000,
+           2px  2px 0 #990000,
+          0    -2px 0 #cc0000,
+          0     2px 0 #cc0000,
+          -2px  0   0 #cc0000,
+           2px  0   0 #cc0000;
+      }
+
+      @keyframes popup-anim {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, 10px) scale(0.5);
+        }
+        15% {
+          opacity: 1;
+          transform: translate(-50%, -10px) scale(1.1);
+        }
+        85% {
+          opacity: 1;
+          transform: translate(-50%, -10px) scale(1.1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -20px) scale(0.8);
+        }
+      }
+
       /* Wrapper controls position/scale; inner .character handles sprite frames */
       .character-wrap {
         position: absolute;
@@ -377,7 +441,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       }
     `;
   const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
-  const characterHtml = `<div class="character-wrap"><div class="character idle"></div></div>`;
+  const characterHtml = `<div class="character-wrap"><div class="character idle"></div><div class="popup-text"></div></div>`;
     const timerHtml = `<div class="timer">01:00:00</div>`;
     const restartButtonHtml = `<button class="restart-button" id="restart-btn">RESTART</button>`;
     const script = /* js */ `(() => {
@@ -388,6 +452,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   const character = document.querySelector('.character');
       const timer = document.querySelector('.timer');
       const restartButton = document.getElementById('restart-btn');
+      const popupText = document.querySelector('.popup-text');
 
       // Timer state
       let timerSeconds = 3600; // 1 hour in seconds
@@ -444,6 +509,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         characterWrap.classList.remove('jumping', 'falling');
         airborne = false;
         character.className = 'character item-use';
+        showPopup('Good work!!');
       }
 
       // Restart game function
@@ -478,6 +544,17 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
 
       // Add restart button click handler
       restartButton.addEventListener('click', restartGame);
+
+      function showPopup(text, isDead = false) {
+        popupText.textContent = text;
+        popupText.classList.remove('dead', 'show');
+        if (isDead) {
+          popupText.classList.add('dead');
+        }
+        // Trigger reflow to restart animation
+        void popupText.offsetWidth;
+        popupText.classList.add('show');
+      }
 
   // Timer starts on user activity and pauses when tab hidden
 
@@ -550,6 +627,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             } else if (awayMinutes > 0) {
               // Away for less than 1 minute - play attack animation twice
               character.className = 'character attack-twice';
+              showPopup('Hey! Get back here');
             }
             break;
         }
@@ -582,6 +660,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           character.className = 'character dead-hold';
           characterWrap.classList.remove('jumping', 'falling');
           airborne = false;
+          showPopup('dead', true);
           // Hold the dead pose for a moment, then show restart button
           setTimeout(() => {
             restartButton.classList.add('show');
@@ -715,6 +794,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       window.addEventListener('resize', layout);
       layout();
       requestAnimationFrame(loop);
+      showPopup('Lets start kid!');
     })();`;
     return `<!DOCTYPE html><html><head><meta charset="utf-8" />
       <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';" />
