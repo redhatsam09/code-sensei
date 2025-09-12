@@ -223,13 +223,20 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         animation: attack-anim 0.8s steps(10) 2 forwards;
       }
       .character.death {
-        animation: death-anim-1 1s steps(10) 1 forwards;
+        animation: death-anim-1 0.9s steps(10) 1 forwards;
       }
       .character.death-2 {
-        animation: death-anim-2 1s steps(10) 1 forwards;
+        animation: death-anim-2 0.9s steps(10) 1 forwards;
       }
       .character.death-3 {
-        animation: death-anim-3 1s steps(10) 1 forwards;
+        animation: death-anim-3 0.9s steps(10) 1 forwards;
+      }
+      .character.death-4 {
+        animation: death-anim-4 0.54s steps(6) 1 forwards; /* 6 frames, 0.09s per frame */
+      }
+      .character.dead-hold {
+        /* Last row: lying dead static frame (last cell/frame 6 of row 11) */
+        background-position: -640px -1408px;
       }
       .character.jump {
         animation: jump-anim 0.45s steps(3) forwards;
@@ -280,6 +287,10 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       @keyframes death-anim-3 {
         from { background-position: 0px -1280px; }
         to { background-position: -1280px -1280px; }
+      }
+      @keyframes death-anim-4 {
+        from { background-position: 0px -1408px; }
+        to { background-position: -768px -1408px; } /* 6 frames * 128px */
       }
     `;
   const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
@@ -424,7 +435,23 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           character.className = 'character death-3';
           return;
         }
-  if (character.classList.contains('fall') || character.classList.contains('attack-twice') || character.classList.contains('death-3')) {
+        if (character.classList.contains('death-3')) {
+          // Continue to last row 6-frame animation
+          character.className = 'character death-4';
+          return;
+        }
+        if (character.classList.contains('death-4')) {
+          // Show final dead pose from last row briefly
+          character.className = 'character dead-hold';
+          characterWrap.classList.remove('jumping', 'falling');
+          airborne = false;
+          // Hold the dead pose for a moment, then restore
+          setTimeout(() => {
+            character.className = walking ? 'character walk' : 'character idle';
+          }, 900);
+          return;
+        }
+        if (character.classList.contains('fall') || character.classList.contains('attack-twice')) {
           // Finish motion and land - return to appropriate state
           character.className = walking ? 'character walk' : 'character idle';
           characterWrap.classList.remove('jumping', 'falling');
