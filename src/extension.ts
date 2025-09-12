@@ -222,6 +222,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       .character.attack-twice {
         animation: attack-anim 0.8s steps(10) 2 forwards;
       }
+      .character.item-use {
+        animation: item-use-anim 0.8s steps(10) 1 forwards;
+      }
       .character.death {
         animation: death-anim-1 0.9s steps(10) 1 forwards;
       }
@@ -276,6 +279,11 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         from { background-position: 0px -896px; }
         to { background-position: -1280px -896px; } /* 10 frames * 128px */
       }
+      /* Item use - 7th line (row index 6), 10 frames */
+      @keyframes item-use-anim {
+        from { background-position: 0px -768px; }
+        to { background-position: -1280px -768px; }
+      }
       @keyframes death-anim-1 {
         from { background-position: 0px -1024px; }
         to { background-position: -1280px -1024px; }
@@ -320,6 +328,10 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         if (timerSeconds > 0) {
           timerSeconds--;
           timer.textContent = formatTime(timerSeconds);
+          // On each minute boundary (e.g., 00:59:00), play item-use animation
+          if (timerSeconds > 0 && (timerSeconds % 60) === 0) {
+            playItemUse();
+          }
         } else {
           timer.textContent = '00:00:00';
           // keep red tone when finished
@@ -340,6 +352,21 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           clearInterval(timerInterval);
           timerInterval = null;
         }
+      }
+
+      function playItemUse() {
+        // Avoid interrupting death sequences
+        if (character.classList.contains('death') ||
+            character.classList.contains('death-2') ||
+            character.classList.contains('death-3') ||
+            character.classList.contains('death-4')) {
+          return;
+        }
+        // Ground the character and play item-use
+        walking = false ? walking : walking; // no-op; preserve walking flag
+        characterWrap.classList.remove('jumping', 'falling');
+        airborne = false;
+        character.className = 'character item-use';
       }
 
   // Timer starts on user activity and pauses when tab hidden
@@ -453,6 +480,12 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         }
         if (character.classList.contains('fall') || character.classList.contains('attack-twice')) {
           // Finish motion and land - return to appropriate state
+          character.className = walking ? 'character walk' : 'character idle';
+          characterWrap.classList.remove('jumping', 'falling');
+          airborne = false;
+        }
+        if (character.classList.contains('item-use')) {
+          // After item-use, return to current locomotion state
           character.className = walking ? 'character walk' : 'character idle';
           characterWrap.classList.remove('jumping', 'falling');
           airborne = false;
