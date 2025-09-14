@@ -131,7 +131,15 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
 
     const sceneLayers = await this.buildSceneLayerUris(webview);
     const characterSheetUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'jotem', 'Jotem spritesheet.png'));
-    webview.html = this.renderSceneHtml(webview, sceneLayers, characterSheetUri);
+    
+    const audioUris = {
+      intro: webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'music', 'intro.mp3')),
+      attack: webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'music', 'attack.mp3')),
+      dead: webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'music', 'dead.mp3')),
+      good: webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'music', 'good.mp3')),
+    };
+
+    webview.html = this.renderSceneHtml(webview, sceneLayers, characterSheetUri, audioUris);
   }
 
   private async buildSceneLayerUris(webview: vscode.Webview): Promise<vscode.Uri[]> {
@@ -158,7 +166,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   }
 
   // Simplified fullscreen scene focused slightly lower (road) and slightly zoomed
-  private renderSceneHtml(webview: vscode.Webview, layers: vscode.Uri[], characterSheetUri: vscode.Uri): string {
+  private renderSceneHtml(webview: vscode.Webview, layers: vscode.Uri[], characterSheetUri: vscode.Uri, audioUris: { [key: string]: vscode.Uri }): string {
     const nonce = Date.now().toString(36);
     const style = /* css */ `
       html, body { height:100%; }
@@ -527,6 +535,12 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         <button id="start-btn" class="start-button">START</button>
       </div>
     `;
+    const audioHtml = `
+      <audio id="audio-intro" src="${audioUris.intro}" preload="auto"></audio>
+      <audio id="audio-attack" src="${audioUris.attack}" preload="auto"></audio>
+      <audio id="audio-dead" src="${audioUris.dead}" preload="auto"></audio>
+      <audio id="audio-good" src="${audioUris.good}" preload="auto"></audio>
+    `;
     const script = /* js */ `(() => {
       const vscode = acquireVsCodeApi();
       const scene = document.querySelector('.scene');
@@ -540,10 +554,30 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       const introContainer = document.getElementById('intro-container');
       const startButton = document.getElementById('start-btn');
 
+      // Audio elements
+      const audioIntro = document.getElementById('audio-intro');
+      const audioAttack = document.getElementById('audio-attack');
+      const audioDead = document.getElementById('audio-dead');
+      const audioGood = document.getElementById('audio-good');
+      const allAudio = [audioIntro, audioAttack, audioDead, audioGood];
+      let audioUnlocked = false;
+
       // Game state flag
       let gameStarted = false;
 
+      function unlockAudio() {
+        if (audioUnlocked) return;
+        allAudio.forEach(audio => {
+          audio.play().catch(() => {});
+          audio.pause();
+          audio.currentTime = 0;
+        });
+        audioUnlocked = true;
+      }
+
       startButton.addEventListener('click', () => {
+        unlockAudio();
+        audioIntro.play();
         introContainer.classList.add('hidden');
         gameStarted = true;
         vscode.postMessage({ command: 'introSeen' });
@@ -611,6 +645,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         airborne = false;
         character.className = 'character item-use';
         showPopup('Good work!!');
+        audioGood.play();
       }
 
       // Restart game function
@@ -745,10 +780,12 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
                 // Away for 1 minute or more - play death animation directly
                 // Don't prevent this if character is already dead - allow death animation to restart
                 character.className = 'character death';
+                audioDead.play();
               } else if (awayMinutes > 0 && !isDead) {
                 // Away for less than 1 minute - play attack animation twice (only if not dead)
                 character.className = 'character attack-twice';
                 showPopup('Hey! Get back here');
+                audioAttack.play();
               }
             } else if (!isDead) {
               // Just returning from typing inactivity - go to idle (only if not dead)
@@ -934,11 +971,11 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       });
     })();`;
     return `<!DOCTYPE html><html><head><meta charset="utf-8" />
-      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';" />
+      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; media-src ${webview.cspSource};" />
       <title>Code Sensei</title>
       <style nonce="${nonce}">${style}</style>
     </head><body>
-      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${timerHtml}${restartButtonHtml}</div>${introHtml}</div>` : `<div class="empty">No layered background PNGs found.</div>`}
+      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${timerHtml}${restartButtonHtml}</div>${introHtml}${audioHtml}</div>` : `<div class="empty">No layered background PNGs found.</div>`}
       <script nonce="${nonce}">${script}</script>
     </body></html>`;
   }
