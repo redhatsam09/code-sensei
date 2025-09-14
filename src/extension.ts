@@ -137,6 +137,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       attack: webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'music', 'attack.mp3')),
       dead: webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'music', 'dead.mp3')),
       good: webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'music', 'good.mp3')),
+      bg: webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'music', 'bg.mp3')),
     };
 
     webview.html = this.renderSceneHtml(webview, sceneLayers, characterSheetUri, audioUris);
@@ -540,6 +541,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       <audio id="audio-attack" src="${audioUris.attack}" preload="auto"></audio>
       <audio id="audio-dead" src="${audioUris.dead}" preload="auto"></audio>
       <audio id="audio-good" src="${audioUris.good}" preload="auto"></audio>
+      <audio id="audio-bg" src="${audioUris.bg}" autoplay loop preload="auto"></audio>
     `;
     const script = /* js */ `(() => {
       const vscode = acquireVsCodeApi();
@@ -559,7 +561,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       const audioAttack = document.getElementById('audio-attack');
       const audioDead = document.getElementById('audio-dead');
       const audioGood = document.getElementById('audio-good');
-      const allAudio = [audioIntro, audioAttack, audioDead, audioGood];
+      const audioBg = document.getElementById('audio-bg');
+      const allAudio = [audioIntro, audioAttack, audioDead, audioGood, audioBg];
+      const sfxAudio = [audioIntro, audioAttack, audioDead, audioGood];
       let audioUnlocked = false;
 
       // Game state flag
@@ -575,9 +579,32 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         audioUnlocked = true;
       }
 
+      // Autoplay background music handler
+      audioBg.volume = 0.3;
+      audioBg.play().catch(error => {
+        console.log('Autoplay for background music was prevented.', error);
+        // If autoplay is prevented, we'll try to start it on the first user interaction.
+      });
+
+      // Audio ducking logic
+      function duckBgMusic() {
+        audioBg.volume = 0.1;
+      }
+      function restoreBgMusic() {
+        audioBg.volume = 0.3;
+      }
+
+      sfxAudio.forEach(sfx => {
+        sfx.addEventListener('play', duckBgMusic);
+        sfx.addEventListener('ended', restoreBgMusic);
+        sfx.addEventListener('pause', restoreBgMusic); // Also restore if paused manually
+      });
+
       startButton.addEventListener('click', () => {
         unlockAudio();
         audioIntro.play();
+        // If bg music failed to autoplay, this click will start it.
+        audioBg.play().catch(()=>{});
         introContainer.classList.add('hidden');
         gameStarted = true;
         vscode.postMessage({ command: 'introSeen' });
