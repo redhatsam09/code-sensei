@@ -1,7 +1,7 @@
 {
-  "name": "forest-sprite-viewer",
-  "displayName": "Forest Sprite Viewer",
-  "description": "View and preview the included Free Pixel Art Forest sprite assets in a custom Activity Bar view.",
+  "name": "code-sensei",
+  "displayName": "Code Sensei",
+  "description": "Your coding mentor that motivates and guides you through your programming journey.",
   "publisher": "your-name",
   "version": "0.0.1",
   "engines": {
@@ -9,25 +9,25 @@
   },
   "categories": ["Other"],
   "activationEvents": [
-    "onView:forestSpritesView",
-    "onCommand:forestSprites.openForest"
+    "onView:codeSenseiView",
+    "onCommand:codeSensei.openSensei"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "forestSprites",
-          "title": "Forest",
+          "id": "codeSensei",
+          "title": "Code Sensei",
           "icon": "resources/forest-icon.svg"
         }
       ]
     },
     "views": {
-      "forestSprites": [
+      "codeSensei": [
         {
-          "id": "forestSpritesView",
-          "name": "Sprites",
+          "id": "codeSenseiView",
+          "name": "Code Sensei",
           "type": "webview",
           "icon": "resources/forest-icon.svg"
         }
@@ -35,8 +35,8 @@
     },
     "commands": [
       {
-        "command": "forestSprites.openForest",
-        "title": "Forest: Open Forest Scene",
+        "command": "codeSensei.openSensei",
+        "title": "Code Sensei: Open Sensei",
         "icon": "$(tree-view-icon)"
       }
     ]

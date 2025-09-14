@@ -4,11 +4,11 @@ import * as path from 'path';
 export function activate(context: vscode.ExtensionContext) {
   const provider = new ForestSpritesViewProvider(context);
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('forestSpritesView', provider)
+    vscode.window.registerWebviewViewProvider('codeSenseiView', provider)
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('forestSprites.openForest', async () => {
+    vscode.commands.registerCommand('codeSensei.openSensei', async () => {
       provider.reveal();
     })
   );
@@ -111,7 +111,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
     if (this.view) {
       this.view.show?.(true);
     } else {
-      vscode.commands.executeCommand('workbench.view.extension.forestSprites');
+      vscode.commands.executeCommand('workbench.view.extension.codeSensei');
     }
   }
 
@@ -935,10 +935,10 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
     })();`;
     return `<!DOCTYPE html><html><head><meta charset="utf-8" />
       <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';" />
-      <title>Forest Scene</title>
+      <title>Code Sensei</title>
       <style nonce="${nonce}">${style}</style>
     </head><body>
-      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${timerHtml}${restartButtonHtml}<div class="overlay">Forest Scene</div></div>${introHtml}</div>` : `<div class="empty">No layered background PNGs found.</div>`}
+      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${timerHtml}${restartButtonHtml}</div>${introHtml}</div>` : `<div class="empty">No layered background PNGs found.</div>`}
       <script nonce="${nonce}">${script}</script>
     </body></html>`;
   }
