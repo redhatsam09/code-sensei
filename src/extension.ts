@@ -522,7 +522,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
     const introHtml = `
       <div id="intro-container" class="intro-container">
         <div class="intro-textbox">
-          <p>Hi, I am your sensei Sam. I will help you code and motivate you throughout the journey</p>
+          <p>Greetings, student! I am Sensei Sam. I will help you master the art of code.</p>
         </div>
         <button id="start-btn" class="start-button">START</button>
       </div>
