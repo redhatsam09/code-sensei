@@ -120,6 +120,15 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
     const { webview } = webviewView;
     webview.options = { enableScripts: true };
 
+    // Handle messages from the webview
+    webview.onDidReceiveMessage(async (message) => {
+      switch (message.command) {
+        case 'introSeen':
+          // This can be used for other logic if needed in the future
+          return;
+      }
+    });
+
     const sceneLayers = await this.buildSceneLayerUris(webview);
     const characterSheetUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'jotem', 'Jotem spritesheet.png'));
     webview.html = this.renderSceneHtml(webview, sceneLayers, characterSheetUri);
@@ -441,12 +450,76 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           transform: translate(-50%, -50%) scale(1);
         }
       }
+
+      /* Intro screen styling */
+      .intro-container {
+        position: absolute;
+        inset: 0;
+        z-index: 200;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: monospace;
+      }
+      .intro-container.hidden {
+        display: none;
+      }
+      .intro-textbox {
+        background: white;
+        color: black;
+        padding: 10px;
+        border-radius: 10px;
+        border: 3px solid black;
+        max-width: 60%;
+        text-align: center;
+        font-size: 14px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      }
+      .start-button {
+        background: linear-gradient(135deg, #8B4513 0%, #A0522D 25%, #CD853F  50%, #A0522D 75%, #654321 100%);
+        border: 4px solid #2F1B14;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        color: #F5DEB3;
+        text-shadow: 
+          -1px -1px 0 #2F1B14,
+           1px -1px 0 #2F1B14,
+          -1px  1px 0 #2F1B14,
+           1px  1px 0 #2F1B14;
+        cursor: pointer;
+        box-shadow: 
+          inset 2px 2px 0 #D2B48C,
+          inset -2px -2px 0 #654321,
+          0 4px 8px rgba(0, 0, 0, 0.3);
+        user-select: none;
+        text-align: center;
+        letter-spacing: 1px;
+      }
+      .start-button:hover {
+        background: linear-gradient(135deg, #A0522D 0%, #CD853F 25%, #DEB887 50%, #CD853F 75%, #8B4513 100%);
+      }
+      .start-button:active {
+        transform: scale(0.95);
+      }
     `;
   const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
   const characterHtml = `<div class="character-wrap"><div class="character idle"></div><div class="popup-text"></div></div>`;
     const timerHtml = `<div class="timer">01:00:00</div>`;
     const restartButtonHtml = `<button class="restart-button" id="restart-btn">RESTART</button>`;
+    const introHtml = `
+      <div id="intro-container" class="intro-container">
+        <div class="intro-textbox">
+          <p>Hi, I am your sensei Sam. I will help you code and motivate you throughout the journey</p>
+        </div>
+        <button id="start-btn" class="start-button">START</button>
+      </div>
+    `;
     const script = /* js */ `(() => {
+      const vscode = acquireVsCodeApi();
       const scene = document.querySelector('.scene');
       const vp = document.querySelector('.viewport');
       const first = scene.querySelector('img');
@@ -455,6 +528,14 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       const timer = document.querySelector('.timer');
       const restartButton = document.getElementById('restart-btn');
       const popupText = document.querySelector('.popup-text');
+      const introContainer = document.getElementById('intro-container');
+      const startButton = document.getElementById('start-btn');
+
+      startButton.addEventListener('click', () => {
+        introContainer.classList.add('hidden');
+        vscode.postMessage({ command: 'introSeen' });
+        showPopup('Lets start kid!');
+      });
 
       // Timer state
       let timerSeconds = 3600; // 1 hour in seconds
@@ -826,7 +907,6 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       window.addEventListener('resize', layout);
       layout();
       requestAnimationFrame(loop);
-      showPopup('Lets start kid!');
       
       // Add a test mechanism - click on character to trigger death (for testing)
       character.addEventListener('click', () => {
@@ -840,7 +920,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       <title>Forest Scene</title>
       <style nonce="${nonce}">${style}</style>
     </head><body>
-      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${timerHtml}${restartButtonHtml}<div class="overlay">Forest Scene</div></div></div>` : `<div class="empty">No layered background PNGs found.</div>`}
+      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${timerHtml}${restartButtonHtml}<div class="overlay">Forest Scene</div></div>${introHtml}</div>` : `<div class="empty">No layered background PNGs found.</div>`}
       <script nonce="${nonce}">${script}</script>
     </body></html>`;
   }
