@@ -467,15 +467,24 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       }
       .intro-textbox {
         background: white;
-        color: black;
-        padding: 10px;
-        border-radius: 10px;
         border: 3px solid black;
+        border-radius: 15px;
+        padding: 12px 18px;
         max-width: 60%;
         text-align: center;
-        font-size: 14px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        font-family: monospace;
+        font-size: 16px;
+        font-weight: bold;
+        color: black;
+        text-shadow:
+          0.5px 0.5px 0 #ccc,
+          1px 1px 0 #aaa,
+          1.5px 1.5px 0 #888;
+        -webkit-font-smoothing: none;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeSpeed;
+        image-rendering: pixelated;
       }
       .start-button {
         background: linear-gradient(135deg, #8B4513 0%, #A0522D 25%, #CD853F  50%, #A0522D 75%, #654321 100%);
