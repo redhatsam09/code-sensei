@@ -540,8 +540,12 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       const introContainer = document.getElementById('intro-container');
       const startButton = document.getElementById('start-btn');
 
+      // Game state flag
+      let gameStarted = false;
+
       startButton.addEventListener('click', () => {
         introContainer.classList.add('hidden');
+        gameStarted = true;
         vscode.postMessage({ command: 'introSeen' });
         showPopup('Lets start kid!');
       });
@@ -589,6 +593,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       }
 
       function playItemUse() {
+        // Don't allow actions if game hasn't started
+        if (!gameStarted) return;
+        
         // Avoid interrupting death sequences or if character is dead
         if (isDead || 
             character.classList.contains('death') ||
@@ -620,6 +627,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         walking = false;
         airborne = false;
         isDead = false; // Reset dead state
+        gameStarted = false; // Reset game started flag
         velocityX = 0;
         character.className = 'character idle';
         characterWrap.classList.remove('jumping', 'falling');
@@ -629,15 +637,13 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         cameraX = desiredStartX;
         targetCameraX = desiredStartX;
         
-        // Hide restart button
+        // Hide restart button and show intro again
         restartButton.classList.remove('show');
+        introContainer.classList.remove('hidden');
         
         // Apply camera transform to snap back to start
         clampCamera();
         applyCameraTransform();
-        
-        // Show the startup message when restarting
-        showPopup('Lets start kid!');
       }
 
       // Add restart button click handler
@@ -684,8 +690,8 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         const message = event.data;
         switch (message.command) {
           case 'startWalking':
-            // Don't allow walking if character is dead
-            if (isDead) return;
+            // Don't allow actions if game hasn't started or character is dead
+            if (!gameStarted || isDead) return;
             
             if (!character.classList.contains('walk')) {
               character.className = 'character walk';
@@ -697,8 +703,8 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             startTimer();
             break;
           case 'stopWalking':
-            // Don't change state if character is dead
-            if (isDead) return;
+            // Don't allow actions if game hasn't started or character is dead
+            if (!gameStarted || isDead) return;
             
             if (character.classList.contains('walk')) {
               character.className = 'character jump';
@@ -710,8 +716,8 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             walking = false;
             break;
           case 'userAway':
-            // Don't change state if character is dead
-            if (isDead) return;
+            // Don't allow actions if game hasn't started or character is dead
+            if (!gameStarted || isDead) return;
             
             // User switched away from VS Code - just set to idle, no attack animation
             if (!walking) {
@@ -721,6 +727,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             }
             break;
           case 'userReturn':
+            // Don't allow actions if game hasn't started
+            if (!gameStarted) return;
+            
             // User returned to VS Code
             const awayMinutes = message.awayMinutes || 0;
             const fromWindowAway = message.fromWindowAway || false;
