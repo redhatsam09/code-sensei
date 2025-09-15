@@ -276,8 +276,9 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         width: 128px;
         height: 128px;
         left: 50%;
-        top: 68%; /* Lowered to be on the road */
-        transform: translate(-50%, -50%) scale(2.2); /* Centered and enlarged */
+        top: 50%;
+        /* Keep the character's feet on the ground regardless of viewport size. */
+        transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2));
         will-change: transform;
       }
       .character-wrap.jumping {
@@ -343,14 +344,14 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       }
       /* Vertical motion for smoother jump/fall */
       @keyframes jump-motion {
-        from { transform: translate(-50%, -50%) scale(2.2) translateY(0px); }
-        to   { transform: translate(-50%, -50%) scale(2.2) translateY(-22px); }
+        from { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(0px); }
+        to   { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(-22px); }
       }
       @keyframes fall-motion {
-        0%   { transform: translate(-50%, -50%) scale(2.2) translateY(-22px); }
-        70%  { transform: translate(-50%, -50%) scale(2.2) translateY(0px); }
-        85%  { transform: translate(-50%, -50%) scale(2.2) translateY(3px); }
-        100% { transform: translate(-50%, -50%) scale(2.2) translateY(0px); }
+        0%   { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(-22px); }
+        70%  { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(0px); }
+        85%  { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(3px); }
+        100% { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(0px); }
       }
       @keyframes jump-anim {
         from { background-position: 0px -512px; }
@@ -739,10 +740,11 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       const characterWorldYFactor = 0.60; // lower focus
       const characterWorldXStartFactor = 0.25; // start a bit from left then scroll
       const walkSpeed = 140; // pixels / second world units
-      let velocityX = 0;
+  let velocityX = 0;
   let walking = false;
   let airborne = false; // true between jump start and fall end
   let isDead = false; // Track if character is dead
+  const groundOffsetFrac = 0.18; // road appears ~18% below viewport center
 
       // Parallax factors per layer (front moves more). If layer count > factors length we interpolate.
       const layerEls = Array.from(scene.querySelectorAll('img'));
@@ -894,6 +896,19 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         visibleW = vpRect.width / scale;
         visibleH = vpRect.height / scale;
         cameraY = worldH * characterWorldYFactor; // constant vertical focus
+  // Keep character feet on the ground regardless of viewport/scene scale
+  // The road (ground) is kept at the viewport vertical center by the camera transform
+  // so we just need to offset the character's center so its feet sit on that line.
+  const charScale = 2.2; // visual scale for character sprite
+  const spriteH = 128;   // logical sprite height
+  const footInset = 8;   // distance from sprite bottom to feet (tweak for perfect contact)
+  const centerToFeetPx = (spriteH / 2) - footInset; // logical px before scaling
+  const groundDeltaScreenPx = vpRect.height * groundOffsetFrac; // desired ground below center in screen px
+  // Translate happens pre-scale, so convert screen px to unscaled
+  const groundDeltaUnscaled = groundDeltaScreenPx / charScale;
+  const totalUnscaledOffset = centerToFeetPx + groundDeltaUnscaled;
+  characterWrap.style.setProperty('--char-scale', String(charScale));
+  characterWrap.style.setProperty('--char-foot-offset', totalUnscaledOffset + 'px');
         // Re-clamp camera when size changes
         clampCamera();
         applyCameraTransform();
