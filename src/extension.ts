@@ -203,6 +203,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         -moz-osx-font-smoothing: grayscale;
         text-rendering: optimizeSpeed;
         z-index: 10;
+        display: none; /* hidden until Start is clicked */
       }
       
       /* Text Popup Styling */
@@ -609,6 +610,8 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         gameStarted = true;
         vscode.postMessage({ command: 'introSeen' });
         showPopup('Lets start kid!');
+        // Show timer only after game has started
+        timer.style.display = 'block';
       });
 
       // Timer state
@@ -681,6 +684,8 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         timerSeconds = 3600; // 1 hour
         timer.textContent = formatTime(timerSeconds);
         timer.style.color = '#ff3333';
+        // Hide timer again until Start is clicked
+        timer.style.display = 'none';
         
         // Stop and restart timer if it was running
         stopTimer();
