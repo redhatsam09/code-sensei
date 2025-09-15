@@ -19,7 +19,7 @@
         {
           "id": "codeSensei",
           "title": "Code Sensei",
-          "icon": "resources/logo-24.png"
+          "icon": "resources/sensei-icon.svg"
         }
       ]
     },
@@ -29,7 +29,7 @@
           "id": "codeSenseiView",
           "name": "Code Sensei",
           "type": "webview",
-          "icon": "resources/logo.png"
+          "icon": "resources/sensei-icon.svg"
         }
       ]
     },
