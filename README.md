@@ -12,15 +12,11 @@ https://github.com/user-attachments/assets/your-youtube-or-demo-video-id
 
 ## Installation
 
-Install Code Sensei directly in VS Code — no local build needed:
+Install Code Sensei directly from the VS Code Marketplace — no local build needed:
 
-- From GitHub Releases (VSIX):
-	1. Download the latest `.vsix` from: https://github.com/redhatsam09/game-final/releases/latest
-	2. In VS Code, open the Extensions view → click the three dots (…) → Install from VSIX… → select the downloaded file.
-	3. Open the Code Sensei view from the Activity Bar or run `Code Sensei: Open Sensei`.
-
-- From Marketplace (optional):
-	- Marketplace listing URL (when published): https://marketplace.visualstudio.com/items?itemName=your-name.code-sensei
+- Marketplace: https://marketplace.visualstudio.com/items?itemName=your-name.code-sensei
+- Or in VS Code, open the Extensions view → search for "Code Sensei" → Install.
+- Open the Code Sensei view from the Activity Bar or run `Code Sensei: Open Sensei`.
 
 ## Features
 
@@ -86,7 +82,7 @@ Audio behavior is handled automatically:
 
 - No background visible: ensure assets are present under `assets/forest/Free Pixel Art Forest/PNG/Background layers/`.
 - Audio not playing on start: click the START button to unlock audio and re-attempt autoplay.
-- Character feet misaligned: use `Shift+ArrowUp/Down` to calibrate the ground; toggle override with `Shift+O` and show the ground line with `Shift+G`.
+- Character feet misaligned: use `Shift+ArrowUp/Down` to calibrate the ground; toggle override with `Shift+O`.
 
 ## Acknowledgements
 
