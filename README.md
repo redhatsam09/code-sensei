@@ -57,10 +57,8 @@ Audio behavior is handled automatically:
 
 > Drop your captures here to showcase the experience.
 
-![Intro Screen Placeholder](https://via.placeholder.com/1200x650?text=Intro+Screen+%E2%80%94+Code+Sensei)
-![Walking Placeholder](https://via.placeholder.com/1200x650?text=Typing+%E2%86%92+Walking+Animation)
-![Nudge/Attack Placeholder](https://via.placeholder.com/1200x650?text=Return+Nudge+%28Attack%29)
-![Death+Restart Placeholder](https://via.placeholder.com/1200x650?text=Death+Sequence+%2B+Restart)
+![code-sensei](https://github.com/user-attachments/assets/1517875d-64e9-4303-8144-72ddee7b56ae)
+
 
 ## Commands
 
