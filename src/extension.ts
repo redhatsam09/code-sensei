@@ -1247,12 +1247,6 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       layout();
       requestAnimationFrame(loop);
       
-      // Add a test mechanism - click on character to trigger death (for testing)
-      character.addEventListener('click', () => {
-        if (!isDead) {
-          character.className = 'character death';
-        }
-      });
     })();`;
     return `<!DOCTYPE html><html><head><meta charset="utf-8" />
       <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; media-src ${webview.cspSource};" />
