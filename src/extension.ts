@@ -129,7 +129,8 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    const sceneLayers = await this.buildSceneLayerUris(webview);
+  const sceneLayers = await this.buildSceneLayerUris(webview);
+  const groundConfig = await this.readGroundConfig();
     const characterSheetUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'jotem', 'Jotem spritesheet.png'));
     
     const audioUris = {
@@ -140,7 +141,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       bg: webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'music', 'bg.mp3')),
     };
 
-    webview.html = this.renderSceneHtml(webview, sceneLayers, characterSheetUri, audioUris);
+    webview.html = this.renderSceneHtml(webview, sceneLayers, characterSheetUri, audioUris, groundConfig);
   }
 
   private async buildSceneLayerUris(webview: vscode.Webview): Promise<vscode.Uri[]> {
@@ -159,6 +160,17 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
     return pngs.map(name => webview.asWebviewUri(vscode.Uri.joinPath(baseDir, name)));
   }
 
+  private async readGroundConfig(): Promise<any | undefined> {
+    const cfgUri = vscode.Uri.joinPath(this.context.extensionUri, 'assets', 'forest', 'Free Pixel Art Forest', 'PNG', 'Background layers', 'ground.json');
+    try {
+      const data = await vscode.workspace.fs.readFile(cfgUri);
+      const txt = Buffer.from(data).toString('utf8');
+      return JSON.parse(txt);
+    } catch {
+      return undefined;
+    }
+  }
+
   private layerSortKey(name: string): number {
     const numMatch = name.match(/_(\d+)\.png$/i);
     if (numMatch) return parseInt(numMatch[1], 10);
@@ -167,7 +179,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
   }
 
   // Simplified fullscreen scene focused slightly lower (road) and slightly zoomed
-  private renderSceneHtml(webview: vscode.Webview, layers: vscode.Uri[], characterSheetUri: vscode.Uri, audioUris: { [key: string]: vscode.Uri }): string {
+  private renderSceneHtml(webview: vscode.Webview, layers: vscode.Uri[], characterSheetUri: vscode.Uri, audioUris: { [key: string]: vscode.Uri }, groundConfig?: any): string {
     const nonce = Date.now().toString(36);
     const style = /* css */ `
       html, body { height:100%; }
@@ -276,15 +288,15 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         width: 128px;
         height: 128px;
         left: 50%;
-        top: 50%;
-        /* Keep the character's feet on the ground regardless of viewport size. */
-        transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2));
-        will-change: transform;
+        top: 0; /* exact top set from JS to align with road */
+        transform: translateX(-50%) scale(var(--char-scale, 2.2));
+        transform-origin: top center;
+        will-change: transform, top;
       }
-      .character-wrap.jumping {
+      .character-wrap.jumping .character-motion {
         animation: jump-motion 0.45s ease-out forwards;
       }
-      .character-wrap.falling {
+      .character-wrap.falling .character-motion {
         animation: fall-motion 0.5s ease-in forwards;
       }
 
@@ -295,6 +307,10 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         background-repeat: no-repeat;
         image-rendering: pixelated; /* Keep pixels sharp */
       }
+
+      /* Two nested wrappers: character-offset handles baseline compensation per frame; character-motion handles jump/fall motion */
+      .character-offset { position: absolute; left: 0; right: 0; bottom: 0; height: 128px; }
+      .character-motion { position: absolute; left: 0; right: 0; bottom: 0; height: 128px; will-change: transform; }
 
       .character.idle {
         animation: idle-anim 1s steps(6) infinite;
@@ -342,16 +358,16 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         from { background-position: 0px -128px; }
         to { background-position: -1024px -128px; } /* 8 frames * 128px */
       }
-      /* Vertical motion for smoother jump/fall */
+      /* Vertical motion for smoother jump/fall (applies on .character-motion only) */
       @keyframes jump-motion {
-        from { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(0px); }
-        to   { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(-22px); }
+        from { transform: translateY(0px); }
+        to   { transform: translateY(-22px); }
       }
       @keyframes fall-motion {
-        0%   { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(-22px); }
-        70%  { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(0px); }
-        85%  { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(3px); }
-        100% { transform: translate(-50%, calc(-50% + var(--char-foot-offset, 0px))) scale(var(--char-scale, 2.2)) translateY(0px); }
+        0%   { transform: translateY(-22px); }
+        70%  { transform: translateY(0px); }
+        85%  { transform: translateY(3px); }
+        100% { transform: translateY(0px); }
       }
       @keyframes jump-anim {
         from { background-position: 0px -512px; }
@@ -525,11 +541,14 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       .start-button:active {
         transform: scale(0.95);
       }
+      /* Debug ground-line overlay */
+      .ground-line { position:absolute; left:0; width:100%; height:1px; background:#ff2a55; z-index:60; pointer-events:none; box-shadow:0 0 0 1px rgba(255,42,85,.15); }
     `;
   const stack = layers.map(u => `<img src="${u}" draggable="false" />`).join('\n');
-  const characterHtml = `<div class="character-wrap"><div class="character idle"></div><div class="popup-text"></div></div>`;
+  const characterHtml = `<div class="character-wrap"><div class="character-offset"><div class="character-motion"><div class="character idle"></div></div></div><div class="popup-text"></div></div>`;
     const timerHtml = `<div class="timer">01:00:00</div>`;
     const restartButtonHtml = `<button class="restart-button" id="restart-btn">RESTART</button>`;
+    const groundLineEl = `<div class="ground-line" id="ground-line" style="display:none;"></div>`;
     const introHtml = `
       <div id="intro-container" class="intro-container">
         <div class="intro-textbox">
@@ -547,10 +566,14 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
     `;
     const script = /* js */ `(() => {
       const vscode = acquireVsCodeApi();
+      const initialState = vscode.getState?.() || {};
+      const groundConfig = ${JSON.stringify(groundConfig || {})};
       const scene = document.querySelector('.scene');
       const vp = document.querySelector('.viewport');
       const first = scene.querySelector('img');
   const characterWrap = document.querySelector('.character-wrap');
+  const characterOffset = document.querySelector('.character-offset');
+  const characterMotion = document.querySelector('.character-motion');
   const character = document.querySelector('.character');
       const timer = document.querySelector('.timer');
       const restartButton = document.getElementById('restart-btn');
@@ -657,7 +680,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         }
       }
 
-      function playItemUse() {
+  function playItemUse() {
         // Don't allow actions if game hasn't started
         if (!gameStarted) return;
         
@@ -732,12 +755,24 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
 
       // State
       let scale = 1;
-      let worldW = 0, worldH = 0;
-      let visibleW = 0, visibleH = 0;
-      let cameraX = 0; // camera center x in world coords
-      let cameraY = 0; // camera center y in world coords
-      let targetCameraX = 0;
-      const characterWorldYFactor = 0.60; // lower focus
+  let worldW = 0, worldH = 0;
+  let visibleW = 0, visibleH = 0;
+  let cameraX = 0; // camera center x in world coords
+  let cameraY = 0; // camera center y in world coords
+  let targetCameraX = 0;
+      const groundFallbackFactor = 0.72; // tuned default if detection unavailable
+  let detectedGroundWorldY = null; // set after analyzing front layer
+      let configuredGroundWorldY = null; // from ground.json or state override
+      if (groundConfig) {
+        if (typeof groundConfig.groundWorldY === 'number') configuredGroundWorldY = groundConfig.groundWorldY;
+        // Support fraction 0..1 config too
+        if (typeof groundConfig.groundFraction === 'number') {
+          // will be applied after worldH known
+          configuredGroundWorldY = null; // mark for later
+        }
+      }
+      // Load persisted override from webview state if present
+      // Do not auto-apply session override by default; user can opt in with Shift+O
       const characterWorldXStartFactor = 0.25; // start a bit from left then scroll
       const walkSpeed = 140; // pixels / second world units
   let velocityX = 0;
@@ -754,6 +789,48 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         const t = idx / (layerEls.length - 1);
         return 0.25 + t * 0.75; // 0.25 .. 1.0
       }
+
+      // Attempt to auto-detect the ground/road Y from the front-most layer by scanning alpha
+      let groundDetectStarted = false;
+      function startGroundDetection() {
+        if (groundDetectStarted || !layerEls.length) return;
+        groundDetectStarted = true;
+        const front = layerEls[layerEls.length - 1];
+        const img = new Image();
+        // Some webviews allow canvas readback on same-origin URIs; if not, we fall back silently
+        try { img.crossOrigin = 'anonymous'; } catch {}
+        img.onload = () => {
+          try {
+            const w = img.naturalWidth, h = img.naturalHeight;
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('ctx');
+            ctx.drawImage(img, 0, 0);
+            // Sample three vertical columns and take the maximum non-transparent Y near the bottom
+            const xs = [Math.floor(w*0.3), Math.floor(w*0.5), Math.floor(w*0.7)];
+            const ys = [];
+            for (const x of xs) {
+              const col = ctx.getImageData(x, 0, 1, h).data;
+              for (let y = h - 1; y >= 0; y--) {
+                const a = col[y*4 + 3];
+                if (a > 8) { ys.push(y); break; }
+              }
+            }
+            if (ys.length) {
+              const y = Math.max.apply(null, ys);
+              detectedGroundWorldY = y; // world pixel coordinate in that layer (all layers share dimensions)
+              layout(); // re-apply with detected ground
+            }
+          } catch (_) {
+            // ignore; fallback will be used
+          }
+        };
+        img.onerror = () => { /* ignore, use fallback */ };
+        img.src = front.getAttribute('src') || '';
+      }
+      // Kick off detection once base images are present
+      startGroundDetection();
 
   window.addEventListener('message', event => {
         const message = event.data;
@@ -780,6 +857,8 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
               characterWrap.classList.remove('falling');
               // trigger upward motion
               characterWrap.classList.add('jumping');
+              // reset motion before new animation
+              characterMotion.style.transform = 'translateY(0px)';
               airborne = true;
             }
             walking = false;
@@ -791,6 +870,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             // User switched away from VS Code - just set to idle, no attack animation
             if (!walking) {
               characterWrap.classList.remove('jumping', 'falling');
+              characterMotion.style.transform = 'translateY(0px)';
               character.className = 'character idle';
               airborne = false;
             }
@@ -806,6 +886,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
             // Stop any walking state and ground the character
             walking = false;
             characterWrap.classList.remove('jumping', 'falling');
+            characterMotion.style.transform = 'translateY(0px)';
             airborne = false;
             
             // Only play attack/death animations if returning from window focus away, not typing inactivity
@@ -829,7 +910,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         }
       });
 
-      character.addEventListener('animationend', () => {
+  character.addEventListener('animationend', () => {
         if (character.classList.contains('jump')) {
           // After jump frames, begin fall frames
           character.className = 'character fall';
@@ -855,6 +936,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           // Show final dead pose from last row briefly
           character.className = 'character dead-hold';
           characterWrap.classList.remove('jumping', 'falling');
+          characterMotion.style.transform = 'translateY(0px)';
           airborne = false;
           isDead = true; // Mark character as dead
           showPopup('dead', true);
@@ -868,15 +950,107 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
           // Finish motion and land - return to appropriate state
           character.className = walking ? 'character walk' : 'character idle';
           characterWrap.classList.remove('jumping', 'falling');
+          characterMotion.style.transform = 'translateY(0px)';
           airborne = false;
         }
         if (character.classList.contains('item-use')) {
           // After item-use, return to current locomotion state
           character.className = walking ? 'character walk' : 'character idle';
           characterWrap.classList.remove('jumping', 'falling');
+          characterMotion.style.transform = 'translateY(0px)';
           airborne = false;
         }
       });
+      // Per-frame baseline compensation to keep feet constant despite sprite row jitter
+      const frameBaselines = {
+        idle: [],
+        walk: [],
+        attack: [], itemuse: [],
+        death1: [], death2: [], death3: [], death4: [],
+        jump: [], fall: []
+      };
+      let baselineReady = false;
+      (function computeBaselines(){
+        const sheet = new Image();
+        try { sheet.crossOrigin = 'anonymous'; } catch {}
+        sheet.onload = () => {
+          try {
+            const w = sheet.naturalWidth, h = sheet.naturalHeight;
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('ctx');
+            ctx.drawImage(sheet, 0, 0);
+            function baselineForRow(rowY, frames) {
+              const res = [];
+              for (let i=0;i<frames;i++) {
+                const sx = i*128, sy = rowY;
+                const data = ctx.getImageData(sx, sy, 128, 128).data;
+                let bottom = 127; // default
+                outer: for (let y=127; y>=0; y--) {
+                  for (let x=20; x<108; x++) { // focus on middle columns to avoid weapon protrusions
+                    const idx = (y*128 + x)*4 + 3;
+                    if (data[idx] > 8) { bottom = y; break outer; }
+                  }
+                }
+                res.push(bottom);
+              }
+              return res;
+            }
+            frameBaselines.idle = baselineForRow(0, 6);
+            frameBaselines.walk = baselineForRow(128, 8);
+            frameBaselines.jump = baselineForRow(512, 3);
+            frameBaselines.fall = baselineForRow(640, 5);
+            frameBaselines.attack = baselineForRow(896, 10);
+            frameBaselines.itemuse = baselineForRow(768, 10);
+            frameBaselines.death1 = baselineForRow(1024, 10);
+            frameBaselines.death2 = baselineForRow(1152, 10);
+            frameBaselines.death3 = baselineForRow(1280, 10);
+            frameBaselines.death4 = baselineForRow(1408, 6);
+            baselineReady = true;
+          } catch(_) { baselineReady = false; }
+        };
+        sheet.onerror = () => { baselineReady = false; };
+  sheet.src = '${characterSheetUri}';
+      })();
+
+      // Apply baseline compensation based on current animation and frame index
+      let lastBgPos = '0px 0px';
+      const charScalePx = () => parseFloat(getComputedStyle(characterWrap).getPropertyValue('--char-scale')||'2.2') || 2.2;
+      function applyBaselineComp() {
+        if (!baselineReady) {
+          characterOffset.style.transform = 'translateY(0px)';
+          requestAnimationFrame(applyBaselineComp);
+          return;
+        }
+        const style = getComputedStyle(character);
+        const bgPos = style.backgroundPosition || style.backgroundPositionX+" "+style.backgroundPositionY;
+        if (!bgPos) return;
+        // Parse current row (Y) and frame (X)
+        const m = bgPos.match(/(-?\d+)px\s+(-?\d+)px/);
+        if (!m) { requestAnimationFrame(applyBaselineComp); return; }
+        const bx = Math.abs(parseInt(m[1],10));
+        const by = Math.abs(parseInt(m[2],10));
+        const frame = Math.floor(bx / 128);
+        let rowKey = '';
+        if (by===0) rowKey='idle';
+        else if (by===128) rowKey='walk';
+        else if (by===512) rowKey='jump';
+        else if (by===640) rowKey='fall';
+        else if (by===768) rowKey='itemuse';
+        else if (by===896) rowKey='attack';
+        else if (by===1024) rowKey='death1';
+        else if (by===1152) rowKey='death2';
+        else if (by===1280) rowKey='death3';
+        else if (by===1408) rowKey='death4';
+        const arr = frameBaselines[rowKey] || [];
+        const base = arr[Math.min(frame, Math.max(0, arr.length-1))] || 127;
+        // Target baseline = max baseline in this row so feet stay consistent
+        const target = Math.max(...arr, 127);
+        const delta = (target - base) * charScalePx();
+        characterOffset.style.transform = 'translateY(' + delta + 'px)';
+        requestAnimationFrame(applyBaselineComp);
+      }
+      requestAnimationFrame(applyBaselineComp);
 
   document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
@@ -893,26 +1067,89 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         scale = Math.max(scaleW, scaleH) * 1.15; // slight zoom
         scene.style.width = worldW + 'px';
         scene.style.height = worldH + 'px';
-        visibleW = vpRect.width / scale;
-        visibleH = vpRect.height / scale;
-        cameraY = worldH * characterWorldYFactor; // constant vertical focus
-  // Keep character feet on the ground regardless of viewport/scene scale
-  // The road (ground) is kept at the viewport vertical center by the camera transform
-  // so we just need to offset the character's center so its feet sit on that line.
-  const charScale = 2.2; // visual scale for character sprite
-  const spriteH = 128;   // logical sprite height
-  const footInset = 8;   // distance from sprite bottom to feet (tweak for perfect contact)
-  const centerToFeetPx = (spriteH / 2) - footInset; // logical px before scaling
-  const groundDeltaScreenPx = vpRect.height * groundOffsetFrac; // desired ground below center in screen px
-  // Translate happens pre-scale, so convert screen px to unscaled
-  const groundDeltaUnscaled = groundDeltaScreenPx / charScale;
-  const totalUnscaledOffset = centerToFeetPx + groundDeltaUnscaled;
-  characterWrap.style.setProperty('--char-scale', String(charScale));
-  characterWrap.style.setProperty('--char-foot-offset', totalUnscaledOffset + 'px');
-        // Re-clamp camera when size changes
-        clampCamera();
+    visibleW = vpRect.width / scale;
+    visibleH = vpRect.height / scale;
+        // Determine ground Y preference order: persisted override > config (px or fraction) > detected > fallback
+        let groundWorldY = null;
+        if (groundConfig && typeof groundConfig.groundWorldY === 'number') {
+          groundWorldY = groundConfig.groundWorldY;
+        } else if (groundConfig && typeof groundConfig.groundFraction === 'number') {
+          groundWorldY = worldH * groundConfig.groundFraction;
+        } else if (detectedGroundWorldY != null) {
+          groundWorldY = detectedGroundWorldY;
+        } else {
+          groundWorldY = worldH * groundFallbackFactor;
+        }
+        // If user explicitly enabled session override, apply it now
+        const state = vscode.getState?.() || {};
+        if (state.useGroundOverride && typeof state.groundWorldYOverride === 'number') {
+          groundWorldY = state.groundWorldYOverride;
+        }
+        // Clamp ground within image bounds
+        groundWorldY = Math.max(0, Math.min(worldH, groundWorldY));
+    cameraY = groundWorldY - (vpRect.height * groundOffsetFrac) / scale;
+    // Clamp camera after computing anchor to avoid out-of-bounds
+    clampCamera();
+        // Compute character absolute top so feet touch the ground line in screen pixels
+        const charScale = 2.2; // visual scale
+        const spriteH = 128;   // logical sprite height
+  const footInset = -22;   // px from bottom to feet (raise character)
+        
+        // Ground line in screen coordinates: where groundWorldY appears after camera transform
+  const groundScreenY = (vpRect.height / 2) + ((groundWorldY - cameraY) * scale);
+        
+        // Position character so its feet (bottom - footInset) align with groundScreenY
+        // Character bottom = top + spriteH * charScale
+        // Character feet = character bottom - footInset * charScale
+        // So: top + spriteH * charScale - footInset * charScale = groundScreenY
+        // Therefore: top = groundScreenY - spriteH * charScale + footInset * charScale
+        const charTop = Math.round(groundScreenY - (spriteH * charScale) + (footInset * charScale));
+        
+        characterWrap.style.setProperty('--char-scale', String(charScale));
+        characterWrap.style.top = charTop + 'px';
+        // Position ground-line debug overlay if enabled
+        const gl = document.getElementById('ground-line');
+        if (gl) {
+          gl.style.top = Math.round(groundScreenY) + 'px';
+        }
         applyCameraTransform();
       }
+
+      // Keyboard nudging to calibrate ground precisely: Shift+ArrowUp/Down adjusts by 1px
+      window.addEventListener('keydown', (e) => {
+        if (!e.shiftKey) return;
+        const vpRect = vp.getBoundingClientRect();
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          // Convert a 1px screen delta to world delta and apply to override
+          // d(groundScreenY) = d(groundWorldY) * scale, so 1px -> 1/scale world px
+          const deltaWorld = (e.key === 'ArrowUp' ? -1 : 1) / scale;
+          const state = vscode.getState?.() || {};
+          const currentOverride = (typeof state.groundWorldYOverride === 'number') ? state.groundWorldYOverride
+            : (typeof (groundConfig?.groundWorldY) === 'number') ? groundConfig.groundWorldY
+            : (typeof (groundConfig?.groundFraction) === 'number') ? worldH * groundConfig.groundFraction
+            : (detectedGroundWorldY != null) ? detectedGroundWorldY
+            : worldH * groundFallbackFactor;
+          const newOverride = Math.max(0, Math.min(worldH, currentOverride + deltaWorld));
+          vscode.setState?.({ ...state, useGroundOverride: true, groundWorldYOverride: newOverride });
+          // Re-layout with new override
+          layout();
+          e.preventDefault();
+        }
+        // Toggle use of override
+        if (e.key.toLowerCase() === 'o') {
+          const state = vscode.getState?.() || {};
+          const next = !state.useGroundOverride;
+          vscode.setState?.({ ...state, useGroundOverride: next });
+          layout();
+          e.preventDefault();
+        }
+        // Toggle ground-line visibility
+        if (e.key.toLowerCase() === 'g') {
+          const gl = document.getElementById('ground-line');
+          if (gl) gl.style.display = (gl.style.display === 'none') ? 'block' : 'none';
+          e.preventDefault();
+        }
+      });
 
       function clampCamera() {
         // Only clamp vertically, allow horizontal to be infinite
@@ -1022,7 +1259,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
       <title>Code Sensei</title>
       <style nonce="${nonce}">${style}</style>
     </head><body>
-      ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${timerHtml}${restartButtonHtml}</div>${introHtml}${audioHtml}</div>` : `<div class="empty">No layered background PNGs found.</div>`}
+  ${layers.length ? `<div class="root"><div class="viewport"><div class="scene">${stack}</div>${characterHtml}${groundLineEl}${timerHtml}${restartButtonHtml}</div>${introHtml}${audioHtml}</div>` : `<div class="empty">No layered background PNGs found.</div>`}
       <script nonce="${nonce}">${script}</script>
     </body></html>`;
   }

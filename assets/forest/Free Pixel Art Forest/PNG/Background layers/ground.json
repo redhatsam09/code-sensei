@@ -1,0 +1,4 @@
+{
+  "groundWorldY": 830,
+  "description": "Y coordinate in world pixels where the character's feet should align with the road"
+}
