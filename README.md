@@ -32,12 +32,6 @@ Install Code Sensei directly from the VS Code Marketplace — no local build nee
 
 ## Configuration
 
-Use these built-in controls while the view is focused:
-
-- `Shift+ArrowUp / Shift+ArrowDown`: Fine-tune the detected ground alignment (per-pixel)
-- `Shift+O`: Toggle use of your manual ground override
-- `Shift+G`: Toggle a debug ground-line overlay
-
 Audio behavior is handled automatically:
 
 - Background music volume: lowered during SFX, restored afterward
@@ -82,7 +76,6 @@ Audio behavior is handled automatically:
 
 - No background visible: ensure assets are present under `assets/forest/Free Pixel Art Forest/PNG/Background layers/`.
 - Audio not playing on start: click the START button to unlock audio and re-attempt autoplay.
-- Character feet misaligned: use `Shift+ArrowUp/Down` to calibrate the ground; toggle override with `Shift+O`.
 
 ## Acknowledgements
 
