@@ -1093,7 +1093,7 @@ class ForestSpritesViewProvider implements vscode.WebviewViewProvider {
         // Compute character absolute top so feet touch the ground line in screen pixels
         const charScale = 2.2; // visual scale
         const spriteH = 128;   // logical sprite height
-  const footInset = -22;   // px from bottom to feet (raise character)
+  const footInset = -24;   // px from bottom to feet (raise character)
         
         // Ground line in screen coordinates: where groundWorldY appears after camera transform
   const groundScreenY = (vpRect.height / 2) + ((groundWorldY - cameraY) * scale);
