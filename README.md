@@ -53,16 +53,13 @@ Audio behavior is handled automatically:
 2. Start coding. The character will walk as you type and the timer will begin.
 3. If you step away, come back to a playful nudge—or a dramatic pixel demise if you took too long. You can restart the session anytime via the on-screen button.
 
-## Screenshots
 
-> Drop your captures here to showcase the experience.
+## Captures
 
-![code-sensei](https://github.com/user-attachments/assets/1517875d-64e9-4303-8144-72ddee7b56ae)
+![Untitled-2 (1)](https://github.com/user-attachments/assets/cb4e5a70-b4c5-435a-a12a-5b0913ab3e03)
 
 
-## Commands
 
-- `codeSensei.openSensei`: Open the Code Sensei webview
 
 ## Development
 
