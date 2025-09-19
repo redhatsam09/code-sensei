@@ -14,7 +14,7 @@
 
 ## Installation
 
-Install Code Sensei directly from the VS Code Marketplace — no local build needed:
+Install Code Sensei directly from the VS Code Marketplace:
 
 - Marketplace: https://marketplace.visualstudio.com/items?itemName=your-name.code-sensei
 - Or in VS Code, open the Extensions view → search for "Code Sensei" → Install.
@@ -79,4 +79,4 @@ Audio behavior is handled automatically:
 - Character sprite sheet: Jotem
 - Background and SFX: included under `music/`
 
-Bring a little joy to your coding sessions—train with Code Sensei! 🥋🌲
+Train with Code Sensei! 🥋
