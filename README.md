@@ -65,7 +65,6 @@ Audio behavior is handled automatically:
 
 - Codebase: TypeScript extension (`src/extension.ts`), webview UI generated inline
 - Assets: Forest layers (`assets/forest/...`), character sprite sheet (`assets/jotem/...`), audio (`music/...`)
-- If you’re contributing, use the standard VS Code Extension workflow (press F5 to launch an Extension Development Host).
 
 ## Troubleshooting
 
