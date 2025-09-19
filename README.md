@@ -8,7 +8,9 @@
 
 — Keep momentum while you work: Code Sensei reacts to your typing, pauses, and context switches with charming animations and subtle audio cues.
 
-https://github.com/user-attachments/assets/your-youtube-or-demo-video-id
+<img width="1919" height="1017" alt="Screenshot 2025-09-19 205326" src="https://github.com/user-attachments/assets/4ce225d1-5d8d-4821-b059-7cffca989feb" />
+
+### [Youtube video](https://youtu.be/MHrUYFEAnhU)
 
 ## Installation
 
