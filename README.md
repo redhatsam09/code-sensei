@@ -61,13 +61,6 @@ Audio behavior is handled automatically:
 ![Untitled-2 (1)](https://github.com/user-attachments/assets/cb4e5a70-b4c5-435a-a12a-5b0913ab3e03)
 
 
-
-
-## Development
-
-- Codebase: TypeScript extension (`src/extension.ts`), webview UI generated inline
-- Assets: Forest layers (`assets/forest/...`), character sprite sheet (`assets/jotem/...`), audio (`music/...`)
-
 ## Troubleshooting
 
 - No background visible: ensure assets are present under `assets/forest/Free Pixel Art Forest/PNG/Background layers/`.
