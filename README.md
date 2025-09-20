@@ -8,7 +8,9 @@
 
 — Keep momentum while you work: Code Sensei reacts to your typing, pauses, and context switches with charming animations and subtle audio cues.
 
-<img width="1919" height="1017" alt="Screenshot 2025-09-19 205326" src="https://github.com/user-attachments/assets/4ce225d1-5d8d-4821-b059-7cffca989feb" />
+## Captures
+
+![Untitled-2 (1)](https://github.com/user-attachments/assets/cb4e5a70-b4c5-435a-a12a-5b0913ab3e03)
 
 ### [Youtube video](https://youtu.be/MHrUYFEAnhU)
 
@@ -54,12 +56,6 @@ Audio behavior is handled automatically:
 1. Open the Code Sensei view and click START.
 2. Start coding. The character will walk as you type and the timer will begin.
 3. If you step away, come back to a playful nudge—or a dramatic pixel demise if you took too long. You can restart the session anytime via the on-screen button.
-
-
-## Captures
-
-![Untitled-2 (1)](https://github.com/user-attachments/assets/cb4e5a70-b4c5-435a-a12a-5b0913ab3e03)
-
 
 ## Troubleshooting
 
