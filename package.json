@@ -2,7 +2,7 @@
   "name": "code-sensei",
   "displayName": "Code Sensei",
   "description": "Your coding mentor that motivates and guides you through your programming journey.",
-  "publisher": "your-name",
+  "publisher": "CodeSensei",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.90.0"
