@@ -4,14 +4,14 @@
   "description": "Your coding mentor that motivates and guides you through your programming journey.",
   "publisher": "CodeSensei",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/redhatsam09/code-sensei.git"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": ["Other"],
-  "activationEvents": [
-    "onView:codeSenseiView",
-    "onCommand:codeSensei.openSensei"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
