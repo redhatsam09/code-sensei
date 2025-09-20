@@ -12,6 +12,9 @@
     "vscode": "^1.90.0"
   },
   "categories": ["Other"],
+  "activationEvents": [
+    "onView:codeSenseiView"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
