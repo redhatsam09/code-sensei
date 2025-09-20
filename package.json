@@ -4,6 +4,7 @@
   "description": "Your coding mentor that motivates and guides you through your programming journey.",
   "publisher": "CodeSensei",
   "version": "0.0.1",
+  "icon": "logo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/redhatsam09/code-sensei.git"
