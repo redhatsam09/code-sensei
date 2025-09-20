@@ -18,7 +18,7 @@
 
 Install Code Sensei directly from the VS Code Marketplace:
 
-- Marketplace: https://marketplace.visualstudio.com/items?itemName=your-name.code-sensei
+- Marketplace: https://marketplace.visualstudio.com/items?itemName=CodeSensei.code-sensei
 - Or in VS Code, open the Extensions view → search for "Code Sensei" → Install.
 - Open the Code Sensei view from the Activity Bar.
 
